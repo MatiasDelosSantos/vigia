@@ -22,6 +22,13 @@ git archive --format=tar HEAD | ssh root@76.13.235.122 'tar xf - -C /opt/vigia &
 - Nginx: `deploy/nginx-vigia.conf` → `/etc/nginx/sites-available/vigia` (rate limit por IP + micro-caché). Certificado Let's Encrypt propio con renovación automática.
 - Contenedores: `vigia-db` (127.0.0.1:5435), `vigia-api` (127.0.0.1:3005), `vigia-worker`, con límites de memoria/CPU.
 
+## Idiomas
+Páginas HTML y documentación en 18 idiomas: en (raíz, canónico/x-default), es, pt, fr, de, it, nl, pl, ru, uk, tr, ar (RTL), hi, id, vi, ja, ko, zh (zh-Hans), bajo `/{código}/...`.
+Diccionarios en `src/i18n/*.ts` (TypeScript exige todas las claves; `test/i18n.test.ts` verifica los marcadores `{var}`).
+Cada página declara `hreflang` para todas las versiones; `sitemap.xml` es un índice con un sitemap por idioma.
+Las respuestas para máquinas (JSON, MCP, `.md` de paquetes) quedan en inglés: son independientes del idioma.
+Para agregar un idioma: crear `src/i18n/xx.ts` y sumarlo en `src/i18n/index.ts` (e incrementar la clave de estado en `src/indexnow.ts` para renotificar).
+
 ## Descubrimiento
 - **Registro oficial MCP**: publicado como `cloud.coredls.vigia/vigia` (autenticación por dominio vía HTTP).
   La clave privada y el binario `mcp-publisher` están en el VPS en `/opt/vigia-registry` (permisos 700); la pública se sirve en
