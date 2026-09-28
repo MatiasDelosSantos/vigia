@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "cloud.coredls.vigia/vigia",
   "title": "Vigía",
-  "description": "Verified, dated facts on npm/PyPI package versions, deprecations, requirements, and AI model prices.",
-  "version": "0.1.0",
+  "description": "Verified, dated facts on npm/PyPI versions, deprecations, per-version vulnerabilities and AI models.",
+  "version": "0.2.0",
   "websiteUrl": "https://vigia.coredls.cloud",
   "remotes": [
     {
