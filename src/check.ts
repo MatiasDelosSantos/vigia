@@ -64,6 +64,14 @@ export function evaluatePypi(spec: string, latest: string): Evaluation {
   if (spec === '') return { verdict: 'unpinned', majors_behind: 0 };
   if (!pep440.validRange(spec)) return { verdict: 'unsupported_spec', majors_behind: null };
   if (pep440.satisfies(latest, spec)) return { verdict: 'up_to_date', majors_behind: 0 };
+  // Cota superior que excluye la última versión: "<4" con última 6.x son 3 versiones mayores atrás.
+  const upper = /(<=?)\s*([0-9][^,\s]*)/.exec(spec);
+  if (upper && pep440.valid(upper[2]!)) {
+    const cap = pep440.major(upper[2]!)!;
+    const exclusiveAtMajor = upper[1] === '<' && pep440.minor(upper[2]!) === 0 && pep440.patch(upper[2]!) === 0;
+    const behind = pep440.major(latest)! - (exclusiveAtMajor ? cap - 1 : cap);
+    if (behind > 0) return { verdict: 'outdated_major', majors_behind: behind };
+  }
   const referenced = [...spec.matchAll(/(?:===?|~=|>=|>)\s*([0-9][^,\s]*)/g)].map((m) => m[1]!).filter((v) => pep440.valid(v));
   if (referenced.length === 0) return { verdict: 'outdated', majors_behind: null };
   const behind = pep440.major(latest)! - Math.min(...referenced.map((v) => pep440.major(v)!));

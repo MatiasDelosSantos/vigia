@@ -80,3 +80,15 @@ describe('util', () => {
     expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe(canonicalJson({ a: { c: 3, d: 2 }, b: 1 }));
   });
 });
+
+describe('evaluatePypi con cota superior', () => {
+  it('"<4" con última 6.x son 3 mayores atrás', () => {
+    expect(evaluatePypi('<4', '6.1.1')).toEqual({ verdict: 'outdated_major', majors_behind: 3 });
+  });
+  it('">=3.2,<4.0" con última 6.x', () => {
+    expect(evaluatePypi('>=3.2,<4.0', '6.1.1')).toEqual({ verdict: 'outdated_major', majors_behind: 3 });
+  });
+  it('"<=5.2" con última 6.x es 1 mayor atrás', () => {
+    expect(evaluatePypi('<=5.2', '6.1.1')).toEqual({ verdict: 'outdated_major', majors_behind: 1 });
+  });
+});

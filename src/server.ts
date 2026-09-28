@@ -48,7 +48,11 @@ function splitPackagePath(rest: string): { eco: string; name: string; suffix: st
 }
 
 async function notFound(c: Context, eco: Ecosystem, name: string) {
-  const suggestions = (await search(name.slice(0, Math.max(3, Math.floor(name.length / 2))), eco, 5)).map((s) => s.name);
+  // Prefijos cada vez más cortos hasta encontrar candidatos (paquetes seguidos, ordenados por popularidad).
+  let suggestions: string[] = [];
+  for (let len = Math.max(3, name.length - 2); len >= 3 && suggestions.length === 0; len = len > 6 ? Math.floor(len / 2) : len - 1) {
+    suggestions = (await search(name.slice(0, len), eco, 5)).map((s) => s.name).filter((n) => n !== name);
+  }
   return c.json({ error: 'not_found', message: `El paquete ${eco}:${name} no existe en el registry.`, did_you_mean: suggestions }, 404);
 }
 

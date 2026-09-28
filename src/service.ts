@@ -161,7 +161,7 @@ export async function listModels(opts: { provider?: string; q?: string; includeR
 export async function search(q: string, eco: string | undefined, limit: number) {
   const r = await pool.query(
     `SELECT key, ecosystem, name, popularity_rank FROM entity
-     WHERE type IN ('package','model') AND ($2::text IS NULL OR ecosystem = $2) AND lower(name) LIKE $1 || '%'
+     WHERE (type = 'model' OR (type = 'package' AND tracked)) AND ($2::text IS NULL OR ecosystem = $2) AND lower(name) LIKE $1 || '%'
      ORDER BY popularity_rank NULLS LAST, length(name) LIMIT $3`,
     [q.toLowerCase().replace(/[%_\\]/g, ''), eco ?? null, limit],
   );
