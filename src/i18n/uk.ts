@@ -91,7 +91,7 @@ export const uk: Messages = {
   'docs.when2': 'Перед оновленням залежностей (POST /v1/check).',
   'docs.when3': 'Перш ніж жорстко прописати в коді ідентифікатор моделі ШІ.',
   'docs.mcpTitle': 'MCP-сервер',
-  'docs.mcpText': 'Кінцева точка streamable HTTP, без автентифікації. Інструменти: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Кінцева точка streamable HTTP, без автентифікації. Інструменти: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'поточний стан пакета; необов’язковий параметр as_of повертає те, що Vigia стверджувала на той момент',
   'docs.ep.history': 'зафіксовані зміни пакета',

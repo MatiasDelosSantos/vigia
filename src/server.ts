@@ -4,12 +4,14 @@ import { config } from './config.js';
 import { pool } from './db.js';
 import { getEntity } from './facts.js';
 import { checkDependencies, parsePackageJson, parseRequirements, type Dependency } from './check.js';
-import { changes, factByHash, listModels, modelView, packageHistory, packageView, recentChanges, resolvePackage, search, stats } from './service.js';
+import { browse, changes, factByHash, listModels, modelView, packageHistory, packageView, recentChanges, relatedPackages, resolvePackage, search, stats, versionList, versionStatus } from './service.js';
 import { canonicalName, isEcosystem, type Ecosystem } from './util.js';
 import { handleMcp } from './api/mcp.js';
 import { migrate } from './migrate.js';
+import { splitPackagePath } from './paths.js';
 import { openapi } from './api/openapi.js';
-import { docsHtml, docsMarkdown, esc, homeHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown } from './api/pages.js';
+import { BROWSE_PAGE_SIZE, FAVICON_SVG, browseHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
+import { recentVersions } from './versions.js';
 import { LOCALES, t, type Locale } from './i18n/index.js';
 
 const app = new Hono();
@@ -45,14 +47,6 @@ function parseAsOf(c: Context): Date | undefined | 'invalid' {
   return Number.isNaN(d.getTime()) ? 'invalid' : d;
 }
 
-/** Separa "/v1/packages/npm/@scope/name/history" en ecosistema, nombre y sufijo. */
-function splitPackagePath(rest: string): { eco: string; name: string; suffix: string } {
-  const parts = rest.split('/').filter(Boolean).map(decodeURIComponent);
-  const eco = parts.shift() ?? '';
-  let suffix = '';
-  if (parts.at(-1) === 'history') suffix = parts.pop()!;
-  return { eco, name: parts.join('/'), suffix };
-}
 
 async function notFound(c: Context, eco: Ecosystem, name: string) {
   // Prefijos cada vez más cortos hasta encontrar candidatos (paquetes seguidos, ordenados por popularidad).
@@ -66,7 +60,7 @@ async function notFound(c: Context, eco: Ecosystem, name: string) {
 // ----------------------------------------------------------------------------------------- API REST
 
 app.get('/v1/packages/*', async (c) => {
-  const { eco, name: raw, suffix } = splitPackagePath(c.req.path.slice('/v1/packages/'.length));
+  const { eco, name: raw, suffix, version } = splitPackagePath(c.req.path.slice('/v1/packages/'.length));
   if (!isEcosystem(eco)) return c.json({ error: 'invalid_ecosystem', message: 'Supported ecosystems: npm, pypi' }, 400);
   const name = canonicalName(eco, raw);
   if (!name) return c.json({ error: 'invalid_name', message: `Invalid package name for ${eco}.` }, 400);
@@ -78,6 +72,16 @@ app.get('/v1/packages/*', async (c) => {
   if (suffix === 'history') {
     c.header('cache-control', CACHE_SHORT);
     return c.json(await packageHistory(entity));
+  }
+  if (suffix === 'versions') {
+    c.header('cache-control', CACHE_SHORT);
+    const limit = c.req.query('all') === 'true' ? 5000 : Math.min(Number(c.req.query('limit') ?? 100) || 100, 1000);
+    return c.json(await versionList(entity, limit));
+  }
+  if (suffix === 'version') {
+    if (!version || version.length > 100 || !/^[0-9A-Za-z.+_!-]+$/.test(version)) return c.json({ error: 'invalid_version' }, 400);
+    c.header('cache-control', CACHE_SHORT);
+    return c.json(await versionStatus(entity, version));
   }
   const view = await packageView(entity, asOf);
   if (view.data.status === 'not_found_in_registry' && !asOf) return notFound(c, eco, name);
@@ -194,6 +198,11 @@ app.get('/openapi.json', (c) => {
 
 app.get('/llms.txt', (c) => c.text(llmsTxt(), 200, { 'cache-control': CACHE_LONG }));
 
+app.get('/favicon.svg', (c) => c.body(FAVICON_SVG, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=604800' }));
+app.get('/favicon.ico', (c) => c.body(FAVICON_SVG, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=604800' }));
+app.get('/terms', (c) => c.html(legalHtml('terms'), 200, { 'cache-control': CACHE_LONG }));
+app.get('/privacy', (c) => c.html(legalHtml('privacy'), 200, { 'cache-control': CACHE_LONG }));
+
 app.get('/robots.txt', (c) =>
   c.text(
     // Abierto a buscadores y agentes, incluidos los crawlers de IA: queremos ser la fuente citada.
@@ -216,12 +225,22 @@ app.get('/sitemaps/:file', async (c) => {
   const code = c.req.param('file').replace(/\.xml$/, '');
   const L = LOCALES.find((x) => x.code === code);
   if (!L) return c.notFound();
-  // Sólo paquetes ya verificados (páginas con datos reales).
+  // Sólo paquetes ya verificados (páginas con datos reales). Indexación por etapas: el inglés lleva todo;
+  // cada traducción, sólo los paquetes más populares hasta que el dominio gane confianza (SITEMAP_LOCALIZED_TOP).
+  const localizedTop = Number(process.env.SITEMAP_LOCALIZED_TOP ?? 300);
   const r = await pool.query<{ ecosystem: string; name: string; lm: Date }>(
     `SELECT ecosystem, name, COALESCE(last_changed_at, last_checked_at) AS lm FROM entity
-     WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL ORDER BY popularity_rank NULLS LAST LIMIT 49000`,
+     WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL AND ($1 OR popularity_rank <= $2)
+     ORDER BY popularity_rank NULLS LAST LIMIT 48000`,
+    [L.code === 'en', localizedTop],
   );
-  const urls = ['/', '/docs', '/models', '/changes']
+  const counts = await pool.query<{ ecosystem: string; n: number }>(
+    `SELECT ecosystem, count(*)::int AS n FROM entity WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL GROUP BY 1`,
+  );
+  const browsePaths = counts.rows.flatMap((x) =>
+    Array.from({ length: Math.ceil(x.n / BROWSE_PAGE_SIZE) }, (_, i) => (i === 0 ? `/${x.ecosystem}` : `/${x.ecosystem}?page=${i + 1}`)),
+  );
+  const urls = ['/', '/docs', '/models', '/changes', '/status', ...browsePaths]
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
     .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {
@@ -236,7 +255,10 @@ function registerPages(L: Locale): void {
   const html = (c: Context, body: string, status: 200 | 400 | 404 = 200) =>
     c.html(body, status, { 'cache-control': CACHE_SHORT, 'content-language': L.lang });
 
-  const home = async (c: Context) => html(c, homeHtml(L, await stats()));
+  const home = async (c: Context) => {
+    const [npmTop, pypiTop] = await Promise.all([browse('npm', 0, 40), browse('pypi', 0, 40)]);
+    return html(c, homeHtml(L, await stats(), { npm: npmTop.items.map((x) => x.name), pypi: pypiTop.items.map((x) => x.name) }));
+  };
   if (p) {
     app.get(p, (c) => c.redirect(`${p}/`, 301));
     app.get(`${p}/`, home);
@@ -245,6 +267,17 @@ function registerPages(L: Locale): void {
   }
 
   app.get(`${p}/docs`, (c) => html(c, docsHtml(L)));
+  app.get(`${p}/status`, async (c) => html(c, statusHtml(L, await stats())));
+
+  // Páginas índice por popularidad: dan enlaces internos a cada paquete (antes sólo existían en el sitemap).
+  for (const eco of ['npm', 'pypi'] as const) {
+    app.get(`${p}/${eco}`, async (c) => {
+      const page = Math.max(1, Math.floor(Number(c.req.query('page') ?? 1)) || 1);
+      const data = await browse(eco, (page - 1) * BROWSE_PAGE_SIZE, BROWSE_PAGE_SIZE);
+      if (data.items.length === 0 && page > 1) return c.notFound();
+      return html(c, browseHtml(L, eco, page, data));
+    });
+  }
   app.get(`${p}/docs.md`, (c) => c.text(docsMarkdown(L), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_LONG, 'content-language': L.lang }));
 
   app.get(`${p}/changes`, async (c) => {
@@ -297,7 +330,9 @@ function registerPages(L: Locale): void {
       const view = await packageView(entity);
       if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
       const history = (await packageHistory(entity, 30)).data.changes;
-      return html(c, packageHtml(L, view, history), view.data.status === 'not_found_in_registry' ? 404 : 200);
+      const peers = Object.keys((view.data as any).requires?.peer_dependencies ?? {});
+      const [versions, related] = await Promise.all([recentVersions(pool, entity.id, 20), relatedPackages(entity, peers)]);
+      return html(c, packageHtml(L, view, history, { versions, related }), view.data.status === 'not_found_in_registry' ? 404 : 200);
     });
   }
 }

@@ -91,7 +91,7 @@ export const de: Messages = {
   'docs.when2': 'Vor dem Aktualisieren von Abhängigkeiten (POST /v1/check).',
   'docs.when3': 'Bevor er die ID eines KI-Modells fest im Code einträgt.',
   'docs.mcpTitle': 'MCP-Server',
-  'docs.mcpText': 'Streamable-HTTP-Endpunkt, ohne Authentifizierung. Werkzeuge: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Streamable-HTTP-Endpunkt, ohne Authentifizierung. Werkzeuge: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'REST-API',
   'docs.ep.package': 'aktueller Zustand eines Pakets; der optionale Parameter as_of liefert, was Vigia zu diesem Zeitpunkt angab',
   'docs.ep.history': 'beobachtete Änderungen eines Pakets',

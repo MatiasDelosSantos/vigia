@@ -91,7 +91,7 @@ export const id: Messages = {
   'docs.when2': 'Sebelum memperbarui dependensi (POST /v1/check).',
   'docs.when3': 'Sebelum menuliskan ID model AI secara langsung di kode.',
   'docs.mcpTitle': 'Server MCP',
-  'docs.mcpText': 'Endpoint streamable HTTP, tanpa autentikasi. Alat: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Endpoint streamable HTTP, tanpa autentikasi. Alat: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'kondisi terkini sebuah paket; parameter opsional as_of mengembalikan apa yang dinyatakan Vigia pada saat itu',
   'docs.ep.history': 'perubahan yang teramati pada sebuah paket',

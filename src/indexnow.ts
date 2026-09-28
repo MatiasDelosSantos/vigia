@@ -5,9 +5,9 @@ import { localeUrl } from './api/pages.js';
 
 const ENDPOINT = 'https://api.indexnow.org/indexnow';
 // Cambiar la versión fuerza una notificación completa (p. ej. al agregar idiomas).
-const STATE_KEY = 'indexnow_last_submit_v2_i18n';
+const STATE_KEY = 'indexnow_last_submit_v3_staged';
 const BATCH = 10_000; // límite de IndexNow por request
-const STATIC_PATHS = ['/', '/docs', '/models', '/changes'];
+const STATIC_PATHS = ['/', '/docs', '/models', '/changes', '/status', '/npm', '/pypi'];
 
 async function post(urls: string[]): Promise<void> {
   const base = config.publicUrl;
@@ -29,17 +29,21 @@ export async function submitIndexNow(): Promise<number> {
   const state = await pool.query<{ v: string }>(`SELECT v FROM kv WHERE k = $1`, [STATE_KEY]);
   const since = state.rows[0]?.v ?? null;
   const startedAt = new Date().toISOString();
-  const r = await pool.query<{ ecosystem: string; name: string }>(
-    `SELECT ecosystem, name FROM entity
+  const r = await pool.query<{ ecosystem: string; name: string; rank: number | null }>(
+    `SELECT ecosystem, name, popularity_rank AS rank FROM entity
      WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL
        AND ($1::timestamptz IS NULL OR last_changed_at > $1 OR created_at > $1)
      ORDER BY popularity_rank NULLS LAST LIMIT 50000`,
     [since],
   );
   if (r.rows.length === 0) return 0;
-  const paths = r.rows.map((x) => `/${x.ecosystem}/${x.name}`);
-  paths.unshift(...(since ? ['/changes'] : STATIC_PATHS));
-  const urls = LOCALES.flatMap((L) => paths.map((p) => localeUrl(L, p)));
+  // Misma política que los sitemaps: inglés completo; traducciones sólo para los paquetes más populares.
+  const localizedTop = Number(process.env.SITEMAP_LOCALIZED_TOP ?? 300);
+  const staticPaths = since ? ['/changes'] : STATIC_PATHS;
+  const urls = LOCALES.flatMap((L) => [
+    ...staticPaths.map((p) => localeUrl(L, p)),
+    ...r.rows.filter((x) => L.code === 'en' || (x.rank !== null && x.rank <= localizedTop)).map((x) => localeUrl(L, `/${x.ecosystem}/${x.name}`)),
+  ]);
 
   for (let i = 0; i < urls.length; i += BATCH) {
     await post(urls.slice(i, i + BATCH));

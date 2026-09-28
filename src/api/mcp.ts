@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { checkDependencies, parsePackageJson, parseRequirements } from '../check.js';
 import { getEntity } from '../facts.js';
 import { pool } from '../db.js';
-import { listModels, modelView, packageView, recentChanges, resolvePackage, search } from '../service.js';
+import { listModels, modelView, packageView, recentChanges, resolvePackage, search, versionStatus } from '../service.js';
 import { canonicalName } from '../util.js';
 
 const json = (o: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(o) }] });
@@ -44,11 +44,34 @@ function buildServer(): McpServer {
   );
 
   server.registerTool(
+    'version_status',
+    {
+      title: 'Version status and vulnerabilities',
+      description:
+        'For one exact version of an npm or PyPI package: whether it exists, when it was published, whether it was deprecated/yanked, how far behind latest it is, its known vulnerabilities (OSV) and the nearest version that fixes all of them. Use before keeping, pinning or recommending a specific version, or when auditing a lockfile entry.',
+      inputSchema: {
+        ecosystem,
+        name: z.string().min(1).max(214).describe('Exact package name'),
+        version: z.string().min(1).max(100).describe('Exact version, e.g. "4.17.1"'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ ecosystem: eco, name, version }) => {
+      const n = canonicalName(eco, name);
+      if (!n) return fail(`Invalid ${eco} package name: ${name}`);
+      if (!/^[0-9A-Za-z.+_!-]+$/.test(version)) return fail('Invalid version string.');
+      const entity = await resolvePackage(eco, n, true);
+      if (!entity) return fail('Could not resolve the package.');
+      return json(await versionStatus(entity, version));
+    },
+  );
+
+  server.registerTool(
     'check_dependencies',
     {
       title: 'Check dependencies',
       description:
-        'Evaluates a full package.json (npm) or requirements.txt (pypi): for each dependency returns the latest version, whether the declared range includes it (up_to_date / outdated / outdated_major) and whether the package is deprecated. Use when opening a project or before upgrading dependencies.',
+        'Evaluates a full package.json (npm) or requirements.txt (pypi): for each dependency returns the latest version, whether the declared range includes it (up_to_date / outdated / outdated_major), whether the package is deprecated, and known vulnerabilities (OSV IDs) of the lowest version the range allows. Use when opening a project or before upgrading dependencies.',
       inputSchema: { ecosystem, manifest: z.string().min(2).max(200_000).describe('Full content of the manifest file') },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },

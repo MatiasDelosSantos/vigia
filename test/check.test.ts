@@ -92,3 +92,37 @@ describe('evaluatePypi con cota superior', () => {
     expect(evaluatePypi('<=5.2', '6.1.1')).toEqual({ verdict: 'outdated_major', majors_behind: 1 });
   });
 });
+
+import { splitPackagePath } from '../src/paths.js';
+
+describe('splitPackagePath', () => {
+  it('paquete simple y con scope', () => {
+    expect(splitPackagePath('npm/next')).toEqual({ eco: 'npm', name: 'next', suffix: '' });
+    expect(splitPackagePath('npm/@types/node')).toEqual({ eco: 'npm', name: '@types/node', suffix: '' });
+  });
+  it('sufijos history, versions y versión puntual', () => {
+    expect(splitPackagePath('npm/@types/node/history')).toEqual({ eco: 'npm', name: '@types/node', suffix: 'history' });
+    expect(splitPackagePath('pypi/requests/versions')).toEqual({ eco: 'pypi', name: 'requests', suffix: 'versions' });
+    expect(splitPackagePath('npm/express/versions/4.17.1')).toEqual({ eco: 'npm', name: 'express', suffix: 'version', version: '4.17.1' });
+  });
+  it('paquetes llamados "versions" o "history" no se confunden con sufijos', () => {
+    expect(splitPackagePath('npm/versions')).toEqual({ eco: 'npm', name: 'versions', suffix: '' });
+    expect(splitPackagePath('npm/@scope/history')).toEqual({ eco: 'npm', name: '@scope/history', suffix: '' });
+    expect(splitPackagePath('npm/versions/versions')).toEqual({ eco: 'npm', name: 'versions', suffix: 'versions' });
+  });
+});
+
+import { minVersionOf } from '../src/check.js';
+
+describe('minVersionOf', () => {
+  it('npm', () => {
+    expect(minVersionOf('npm', '^4.17.1')).toBe('4.17.1');
+    expect(minVersionOf('npm', '>=2 <3')).toBe('2.0.0');
+    expect(minVersionOf('npm', '*')).toBeNull();
+  });
+  it('pypi', () => {
+    expect(minVersionOf('pypi', '==1.26.4')).toBe('1.26.4');
+    expect(minVersionOf('pypi', '>=2.0,<3')).toBe('2.0');
+    expect(minVersionOf('pypi', '')).toBeNull();
+  });
+});

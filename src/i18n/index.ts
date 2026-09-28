@@ -16,6 +16,24 @@ import { vi } from './vi.js';
 import { ja } from './ja.js';
 import { ko } from './ko.js';
 import { zh } from './zh.js';
+import { en2, type Message2Key, type Messages2 } from './extra/en.js';
+import { es2 } from './extra/es.js';
+import { pt2 } from './extra/pt.js';
+import { fr2 } from './extra/fr.js';
+import { de2 } from './extra/de.js';
+import { it2 } from './extra/it.js';
+import { nl2 } from './extra/nl.js';
+import { pl2 } from './extra/pl.js';
+import { ru2 } from './extra/ru.js';
+import { uk2 } from './extra/uk.js';
+import { tr2 } from './extra/tr.js';
+import { ar2 } from './extra/ar.js';
+import { hi2 } from './extra/hi.js';
+import { id2 } from './extra/id.js';
+import { vi2 } from './extra/vi.js';
+import { ja2 } from './extra/ja.js';
+import { ko2 } from './extra/ko.js';
+import { zh2 } from './extra/zh.js';
 
 export interface Locale {
   /** Segmento de URL ('' para inglés, que vive en la raíz y es el canónico x-default). */
@@ -27,28 +45,28 @@ export interface Locale {
   dir: 'ltr' | 'rtl';
   /** Prefijo de ruta: '' o '/es'. */
   prefix: string;
-  m: Messages;
+  m: Messages & Messages2;
 }
 
-const defs: Array<[code: string, lang: string, name: string, m: Messages, dir?: 'rtl']> = [
-  ['en', 'en', 'English', en],
-  ['es', 'es', 'Español', es],
-  ['pt', 'pt', 'Português', pt],
-  ['fr', 'fr', 'Français', fr],
-  ['de', 'de', 'Deutsch', de],
-  ['it', 'it', 'Italiano', it],
-  ['nl', 'nl', 'Nederlands', nl],
-  ['pl', 'pl', 'Polski', pl],
-  ['ru', 'ru', 'Русский', ru],
-  ['uk', 'uk', 'Українська', uk],
-  ['tr', 'tr', 'Türkçe', tr],
-  ['ar', 'ar', 'العربية', ar, 'rtl'],
-  ['hi', 'hi', 'हिन्दी', hi],
-  ['id', 'id', 'Bahasa Indonesia', id],
-  ['vi', 'vi', 'Tiếng Việt', vi],
-  ['ja', 'ja', '日本語', ja],
-  ['ko', 'ko', '한국어', ko],
-  ['zh', 'zh-Hans', '简体中文', zh],
+const defs: Array<[code: string, lang: string, name: string, m: Messages & Messages2, dir?: 'rtl']> = [
+  ['en', 'en', 'English', { ...en, ...en2 }],
+  ['es', 'es', 'Español', { ...es, ...es2 }],
+  ['pt', 'pt', 'Português', { ...pt, ...pt2 }],
+  ['fr', 'fr', 'Français', { ...fr, ...fr2 }],
+  ['de', 'de', 'Deutsch', { ...de, ...de2 }],
+  ['it', 'it', 'Italiano', { ...it, ...it2 }],
+  ['nl', 'nl', 'Nederlands', { ...nl, ...nl2 }],
+  ['pl', 'pl', 'Polski', { ...pl, ...pl2 }],
+  ['ru', 'ru', 'Русский', { ...ru, ...ru2 }],
+  ['uk', 'uk', 'Українська', { ...uk, ...uk2 }],
+  ['tr', 'tr', 'Türkçe', { ...tr, ...tr2 }],
+  ['ar', 'ar', 'العربية', { ...ar, ...ar2 }, 'rtl'],
+  ['hi', 'hi', 'हिन्दी', { ...hi, ...hi2 }],
+  ['id', 'id', 'Bahasa Indonesia', { ...id, ...id2 }],
+  ['vi', 'vi', 'Tiếng Việt', { ...vi, ...vi2 }],
+  ['ja', 'ja', '日本語', { ...ja, ...ja2 }],
+  ['ko', 'ko', '한국어', { ...ko, ...ko2 }],
+  ['zh', 'zh-Hans', '简体中文', { ...zh, ...zh2 }],
 ];
 
 export const LOCALES: Locale[] = defs.map(([code, lang, name, m, dir]) => ({
@@ -63,9 +81,11 @@ export const LOCALES: Locale[] = defs.map(([code, lang, name, m, dir]) => ({
 export const DEFAULT_LOCALE = LOCALES[0]!;
 
 /** Traduce una clave e interpola {variables}. Los valores NO se escapan: escapar al insertar en HTML. */
-export function t(L: Locale, key: MessageKey, vars: Record<string, string | number> = {}): string {
-  const s = L.m[key] ?? en[key] ?? String(key);
+export function t(L: Locale, key: AnyKey, vars: Record<string, string | number> = {}): string {
+  const base: Record<string, string> = { ...en, ...en2 };
+  const s = (L.m as Record<string, string>)[key] ?? base[key] ?? String(key);
   return s.replace(/\{(\w+)\}/g, (_, k: string) => (k in vars ? String(vars[k]) : `{${k}}`));
 }
 
-export type { MessageKey };
+export type AnyKey = MessageKey | Message2Key;
+export type { MessageKey, Message2Key };

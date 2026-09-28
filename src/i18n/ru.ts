@@ -91,7 +91,7 @@ export const ru: Messages = {
   'docs.when2': 'Перед обновлением зависимостей (POST /v1/check).',
   'docs.when3': 'Перед тем как жёстко прописать в коде идентификатор модели ИИ.',
   'docs.mcpTitle': 'MCP-сервер',
-  'docs.mcpText': 'Конечная точка streamable HTTP, без аутентификации. Инструменты: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Конечная точка streamable HTTP, без аутентификации. Инструменты: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'текущее состояние пакета; необязательный параметр as_of возвращает то, что Vigia утверждала в тот момент',
   'docs.ep.history': 'зафиксированные изменения пакета',

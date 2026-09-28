@@ -91,7 +91,7 @@ export const ko: Messages = {
   'docs.when2': '의존성을 업데이트하기 전 (POST /v1/check).',
   'docs.when3': 'AI 모델 ID를 코드에 직접 작성하기 전.',
   'docs.mcpTitle': 'MCP 서버',
-  'docs.mcpText': 'Streamable HTTP 엔드포인트, 인증 불필요. 도구: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Streamable HTTP 엔드포인트, 인증 불필요. 도구: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': '패키지의 현재 상태. 선택적 as_of 매개변수로 해당 시점에 Vigia가 제시한 내용을 반환합니다',
   'docs.ep.history': '패키지의 확인된 변경 사항',

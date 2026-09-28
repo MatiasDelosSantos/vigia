@@ -1,6 +1,7 @@
 import { tx, type Queryable } from '../db.js';
 import { factsOf, setFact, touchFacts, type EntityRow } from '../facts.js';
 import { httpGet, sha256, UpstreamError } from '../util.js';
+import { isPrerelease, upsertVersions, type VersionRow } from '../versions.js';
 
 export interface IngestResult {
   found: boolean;
@@ -28,6 +29,25 @@ async function fetchDepsDev(name: string, version: string): Promise<{ data: Deps
     return { data: r.status === 200 ? (JSON.parse(r.body) as DepsDevVersion) : null, url };
   } catch {
     return { data: null, url }; // deps.dev es complementaria: si falla, seguimos con los datos del registry
+  }
+}
+
+/** Todas las versiones con fecha y estado de deprecación, desde deps.dev (mucho más liviano que el documento del registry). */
+async function fetchNpmVersions(name: string): Promise<VersionRow[] | null> {
+  try {
+    const r = await httpGet(`https://api.deps.dev/v3/systems/npm/packages/${encodeURIComponent(name)}`, { timeoutMs: 30_000 });
+    if (r.status !== 200) return null;
+    const versions: any[] = JSON.parse(r.body).versions ?? [];
+    return versions
+      .filter((v) => typeof v.versionKey?.version === 'string')
+      .map((v) => ({
+        version: v.versionKey.version,
+        published_at: v.publishedAt ?? null,
+        prerelease: isPrerelease('npm', v.versionKey.version),
+        withdrawn: Boolean(v.isDeprecated),
+      }));
+  } catch {
+    return null;
   }
 }
 
@@ -62,9 +82,11 @@ export async function ingestNpm(db: Queryable, entity: EntityRow): Promise<Inges
   const distTagsFact = current.get('dist_tags');
   const needDistTags = res.status === 200 || !distTagsFact || now - distTagsFact.last_verified_at.getTime() > DIST_TAGS_MAX_AGE_MS;
 
-  if (res.status === 304 && !needDistTags) {
+  const latestKnown = current.get('latest_version')?.value?.version;
+  const versionsSynced = latestKnown !== undefined && entity.attrs?.versions_synced_for === latestKnown;
+  if (res.status === 304 && !needDistTags && versionsSynced) {
     const advisories = current.get('advisories');
-    if (!advisories || now - advisories.last_verified_at.getTime() <= DEPSDEV_MAX_AGE_MS) {
+    if (advisories && now - advisories.last_verified_at.getTime() <= DEPSDEV_MAX_AGE_MS) {
       await touchFacts(db, entity.id);
       return { found: true, changed: false };
     }
@@ -79,6 +101,9 @@ export async function ingestNpm(db: Queryable, entity: EntityRow): Promise<Inges
   const advisoriesFact = current.get('advisories');
   const needDepsDev = version !== prevVersion || !advisoriesFact || now - advisoriesFact.last_verified_at.getTime() > DEPSDEV_MAX_AGE_MS;
   const depsdev = needDepsDev ? await fetchDepsDev(entity.name, version) : null;
+
+  // Historial de versiones (deps.dev): sólo cuando cambia la última versión o todavía no lo tenemos.
+  const versionRows = entity.attrs?.versions_synced_for !== version ? await fetchNpmVersions(entity.name) : null;
 
   let distTags: Record<string, string> | null = null;
   let distTagsEtag = etags.distTags ?? null;
@@ -134,8 +159,10 @@ export async function ingestNpm(db: Queryable, entity: EntityRow): Promise<Inges
       any =
         (await setFact(c, entity, { predicate: 'advisories', value: ids, method: 'depsdev', confidence: 0.95, sourceUrl: depsdev.url })) || any;
     }
+    if (versionRows) await upsertVersions(c, entity.id, versionRows);
     const attrs = {
       ...entity.attrs,
+      ...(versionRows ? { versions_synced_for: version } : {}),
       etags: { latest: res.etag ?? etags.latest ?? null, distTags: distTagsEtag },
       ...(manifest
         ? {

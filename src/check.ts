@@ -5,6 +5,7 @@ import { config } from './config.js';
 import { factsOf } from './facts.js';
 import { resolvePackage } from './service.js';
 import { canonicalName, type Ecosystem } from './util.js';
+import { vulnIdsBatch } from './osv.js';
 
 export interface Dependency {
   name: string;
@@ -78,6 +79,17 @@ export function evaluatePypi(spec: string, latest: string): Evaluation {
   return { verdict: behind > 0 ? 'outdated_major' : 'outdated', majors_behind: Math.max(behind, 0) };
 }
 
+/** Menor versión que admite el rango declarado (la que se instalaría en el peor caso). */
+export function minVersionOf(eco: Ecosystem, spec: string): string | null {
+  if (eco === 'npm') {
+    const range = semver.validRange(spec);
+    if (!range || spec.trim() === '*' || spec.trim() === '') return null;
+    return semver.minVersion(range)?.version ?? null;
+  }
+  const m = /(?:===?|~=|>=)s*([0-9][^,s;]*)/.exec(spec);
+  return m && pep440.valid(m[1]!) ? m[1]! : null;
+}
+
 // ------------------------------------------------------------------------ check completo
 
 export async function checkDependencies(eco: Ecosystem, deps: Dependency[]) {
@@ -112,6 +124,19 @@ export async function checkDependencies(eco: Ecosystem, deps: Dependency[]) {
       };
     }),
   );
+  // Vulnerabilidades de la versión mínima de cada rango (una sola consulta en lote a OSV).
+  let osvError: string | null = null;
+  const targets = results
+    .map((r: any, i) => ({ i, name: r.name as string, version: 'error' in r ? null : minVersionOf(eco, r.spec) }))
+    .filter((x): x is { i: number; name: string; version: string } => x.version !== null);
+  try {
+    const ids = await vulnIdsBatch(eco, targets.map((t) => ({ name: t.name, version: t.version })));
+    targets.forEach((t, k) => {
+      Object.assign(results[t.i]!, { min_version: t.version, min_version_vulnerabilities: ids[k] ?? [] });
+    });
+  } catch (err) {
+    osvError = err instanceof Error ? err.message : String(err);
+  }
   const count = (pred: (r: any) => boolean) => results.filter(pred).length;
   return {
     data: results,
@@ -123,13 +148,16 @@ export async function checkDependencies(eco: Ecosystem, deps: Dependency[]) {
       outdated_major: count((r) => r.verdict === 'outdated_major'),
       deprecated: count((r) => r.package_deprecated),
       unresolved: count((r) => 'error' in r),
+      min_version_vulnerable: count((r) => (r.min_version_vulnerabilities?.length ?? 0) > 0),
     },
     meta: {
       as_of: new Date().toISOString(),
+      vulnerabilities_error: osvError,
       notes: [
         'verdict compares the declared range against the latest stable release (dist-tag latest on npm).',
         'outdated_major means upgrading to the latest release crosses a major version (possible breaking changes).',
         'The manifest content is not stored.',
+        'min_version_vulnerabilities lists OSV advisory IDs affecting the lowest version the declared range allows; query GET /v1/packages/{eco}/{name}/versions/{version} for details and the nearest fixed version.',
       ],
     },
   };

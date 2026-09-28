@@ -91,7 +91,7 @@ export const tr: Messages = {
   'docs.when2': 'Bağımlılıkları güncellemeden önce (POST /v1/check).',
   'docs.when3': 'Bir yapay zekâ modelinin kimliğini koda sabit olarak yazmadan önce.',
   'docs.mcpTitle': 'MCP sunucusu',
-  'docs.mcpText': 'Streamable HTTP uç noktası, kimlik doğrulama yok. Araçlar: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Streamable HTTP uç noktası, kimlik doğrulama yok. Araçlar: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'bir paketin güncel durumu; isteğe bağlı as_of parametresi Vigia’nın o anda ne bildirdiğini döndürür',
   'docs.ep.history': 'bir paketin gözlenen değişiklikleri',

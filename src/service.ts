@@ -3,6 +3,8 @@ import { config } from './config.js';
 import { refreshEntity, intervalFor } from './connectors/index.js';
 import { factsOf, getEntity, recordDemand, upsertEntity, type EntityRow, type FactRow } from './facts.js';
 import { canonicalName, entityKey, type Ecosystem } from './util.js';
+import { compareVersions, maintenanceOf, majorOf, recentVersions } from './versions.js';
+import { vulnsForVersion } from './osv.js';
 
 export const DATA_LICENSE = "CC-BY-4.0 (Vigia); upstream data remains under each source's terms";
 
@@ -79,9 +81,10 @@ export async function packageView(entity: EntityRow, asOf?: Date): Promise<Packa
       deprecation: deprecated?.deprecated ? { message: deprecated.message } : null,
       license: v('license'),
       advisories_on_latest: v('advisories'),
+      maintenance: await maintenanceOf(pool, entity.id),
       description: entity.attrs?.description ?? null,
       repository: entity.attrs?.repository ?? null,
-      links: { registry: registryUrl, page: `${config.publicUrl}/${entity.ecosystem}/${entity.name}`, history: `${config.publicUrl}/v1/packages/${entity.ecosystem}/${entity.name}/history` },
+      links: { registry: registryUrl, page: `${config.publicUrl}/${entity.ecosystem}/${entity.name}`, history: `${config.publicUrl}/v1/packages/${entity.ecosystem}/${entity.name}/history`, versions: `${config.publicUrl}/v1/packages/${entity.ecosystem}/${entity.name}/versions` },
     },
     meta: {
       as_of: (asOf ?? new Date()).toISOString(),
@@ -212,10 +215,137 @@ export async function stats() {
       (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM detected_at - source_published_at))
          FROM change_event WHERE kind = 'released' AND source_published_at IS NOT NULL AND detected_at > now() - interval '7 days'
            AND detected_at >= source_published_at) AS release_detection_lag_p50_s,
-      (SELECT count(*) FROM entity WHERE origin = 'demand') AS on_demand_packages
+      (SELECT count(*) FROM entity WHERE origin = 'demand') AS on_demand_packages,
+      (SELECT count(*) FROM entity WHERE type = 'package' AND last_checked_at > now() - interval '1 hour') AS verified_last_hour,
+      (SELECT count(*) FROM entity WHERE type = 'package' AND tracked AND error_count > 0) AS packages_with_errors
   `);
   const row = r.rows[0];
   return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v === null ? null : Math.round(Number(v))]));
 }
 
 export { canonicalName };
+
+// ------------------------------------------------------------------------------------ versiones
+
+export async function versionList(entity: EntityRow, limit: number) {
+  const rows = await recentVersions(pool, entity.id, limit);
+  const m = await maintenanceOf(pool, entity.id);
+  return {
+    data: {
+      entity: entity.key,
+      versions: rows.map((r) => ({ version: r.version, published_at: iso(r.published_at), prerelease: r.prerelease, withdrawn: r.withdrawn })),
+      maintenance: m,
+    },
+    meta: {
+      total_versions: m.total_versions,
+      returned: rows.length,
+      order: 'published_at desc',
+      withdrawn_means: entity.ecosystem === 'npm' ? 'deprecated on npm' : 'all files yanked on PyPI',
+      source: entity.ecosystem === 'npm' ? 'https://deps.dev' : `https://pypi.org/pypi/${entity.name}/json`,
+      license: DATA_LICENSE,
+    },
+  };
+}
+
+/** Estado de una versión exacta: si existe, cuándo salió, si fue retirada, cuántas mayores atrás y sus vulnerabilidades (OSV). */
+export async function versionStatus(entity: EntityRow, version: string) {
+  const eco = entity.ecosystem as Ecosystem;
+  const r = await pool.query<{ version: string; published_at: Date | null; prerelease: boolean; withdrawn: boolean }>(
+    `SELECT version, published_at, prerelease, withdrawn FROM package_version WHERE entity_id = $1 AND version = $2`,
+    [entity.id, version],
+  );
+  const row = r.rows[0];
+  const f = await factsOf(pool, entity.id);
+  const latest: string | undefined = f.get('latest_version')?.value?.version;
+  const newer = await pool.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM package_version WHERE entity_id = $1 AND NOT prerelease AND published_at > (SELECT published_at FROM package_version WHERE entity_id = $1 AND version = $2)`,
+    [entity.id, version],
+  );
+  let vulns = null;
+  let vulnError: string | null = null;
+  try {
+    vulns = await vulnsForVersion(eco, entity.name, version);
+  } catch (err) {
+    vulnError = err instanceof Error ? err.message : String(err);
+  }
+  const lm = latest ? majorOf(eco, latest) : null;
+  const vm = majorOf(eco, version);
+  return {
+    data: {
+      entity: entity.key,
+      version,
+      // null = todavía no sincronizamos el historial de este paquete (no podemos afirmar que no exista).
+      exists: row ? true : (await maintenanceOf(pool, entity.id)).total_versions === 0 ? null : false,
+      published_at: iso(row?.published_at),
+      prerelease: row?.prerelease ?? null,
+      withdrawn: row?.withdrawn ?? null,
+      latest,
+      is_latest: latest === version,
+      newer_stable_releases: row ? newer.rows[0]?.n ?? 0 : null,
+      majors_behind: lm !== null && vm !== null ? Math.max(lm - vm, 0) : null,
+      comparison_to_latest: latest ? compareVersions(eco, version, latest) : null,
+      vulnerabilities: vulns?.vulnerabilities ?? null,
+      nearest_fixed_version: vulns?.nearest_fixed_version ?? null,
+      unfixed_vulnerabilities: vulns?.unfixed_count ?? null,
+    },
+    meta: {
+      as_of: new Date().toISOString(),
+      sources: [entity.ecosystem === 'npm' ? 'https://deps.dev' : `https://pypi.org/pypi/${entity.name}/json`, 'https://osv.dev'],
+      vulnerabilities_error: vulnError,
+      notes: [
+        'nearest_fixed_version is the smallest version that fixes every known vulnerability affecting this version (null if any has no fix).',
+        'Vulnerability data from OSV (aggregates GitHub Security Advisories, PyPA and others); cached up to 6 hours.',
+      ],
+      untrusted_text_fields: ['vulnerabilities[].summary'],
+      license: DATA_LICENSE,
+    },
+  };
+}
+
+/** Enlaces internos: peers seguidos + vecinos por popularidad en el mismo ecosistema. */
+export async function relatedPackages(entity: EntityRow, peerNames: string[], limit = 12) {
+  const peers = peerNames.length
+    ? await pool.query<{ ecosystem: string; name: string }>(
+        `SELECT ecosystem, name FROM entity WHERE type = 'package' AND tracked AND ecosystem = $1 AND name = ANY($2) AND last_checked_at IS NOT NULL LIMIT 10`,
+        [entity.ecosystem, peerNames],
+      )
+    : { rows: [] };
+  const rank = entity.popularity_rank ?? 1000;
+  const near = await pool.query<{ ecosystem: string; name: string }>(
+    `SELECT ecosystem, name FROM entity WHERE type = 'package' AND tracked AND ecosystem = $1 AND id <> $2 AND last_checked_at IS NOT NULL
+       AND popularity_rank BETWEEN $3 AND $4 ORDER BY abs(popularity_rank - $5) LIMIT $6`,
+    [entity.ecosystem, entity.id, rank - limit, rank + limit, rank, limit],
+  );
+  const seen = new Set<string>();
+  return [...peers.rows, ...near.rows].filter((x) => (seen.has(x.name) ? false : (seen.add(x.name), true))).slice(0, limit + 4);
+}
+
+/** Listado para páginas índice (orden por popularidad). */
+export async function browse(eco: Ecosystem, offset: number, limit: number) {
+  const r = await pool.query<{ id: number; name: string; popularity_rank: number | null }>(
+    `SELECT id, name, popularity_rank FROM entity WHERE type = 'package' AND tracked AND ecosystem = $1 AND last_checked_at IS NOT NULL
+     ORDER BY popularity_rank NULLS LAST, name OFFSET $2 LIMIT $3`,
+    [eco, offset, limit],
+  );
+  const total = await pool.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM entity WHERE type = 'package' AND tracked AND ecosystem = $1 AND last_checked_at IS NOT NULL`,
+    [eco],
+  );
+  const ids = r.rows.map((x) => x.id);
+  const facts = ids.length
+    ? await pool.query<{ entity_id: number; predicate: string; value: any }>(
+        `SELECT entity_id, predicate, value FROM fact WHERE entity_id = ANY($1) AND recorded_to IS NULL AND predicate IN ('latest_version','deprecated','yanked','exists')`,
+        [ids],
+      )
+    : { rows: [] };
+  const byId = new Map<number, Record<string, any>>();
+  for (const f of facts.rows) byId.set(f.entity_id, { ...(byId.get(f.entity_id) ?? {}), [f.predicate]: f.value });
+  return {
+    total: total.rows[0]?.n ?? 0,
+    items: r.rows.map((x) => {
+      const f = byId.get(x.id) ?? {};
+      const status = f.exists === false ? 'not_found_in_registry' : f.yanked?.yanked ? 'yanked' : f.deprecated?.deprecated ? 'deprecated' : 'active';
+      return { name: x.name, rank: x.popularity_rank, version: f.latest_version?.version ?? null, published_at: f.latest_version?.published_at ?? null, status };
+    }),
+  };
+}

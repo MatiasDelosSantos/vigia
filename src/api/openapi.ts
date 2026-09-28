@@ -32,6 +32,22 @@ export function openapi() {
       '/v1/packages/{ecosystem}/{name}/history': {
         get: { operationId: 'getPackageHistory', summary: 'Observed changes (releases, deprecations, requirements)', parameters: [eco, name], responses: { '200': { description: 'History' } } },
       },
+      '/v1/packages/{ecosystem}/{name}/versions': {
+        get: {
+          operationId: 'listVersions',
+          summary: 'Version history (newest first) and maintenance signals',
+          parameters: [eco, name, { name: 'limit', in: 'query', schema: { type: 'integer', default: 100, maximum: 1000 } }, { name: 'all', in: 'query', schema: { type: 'boolean' } }],
+          responses: { '200': { description: 'Versions' } },
+        },
+      },
+      '/v1/packages/{ecosystem}/{name}/versions/{version}': {
+        get: {
+          operationId: 'getVersionStatus',
+          summary: 'One exact version: publish date, deprecated/yanked, distance to latest, known vulnerabilities (OSV) and nearest fixed version',
+          parameters: [eco, name, { name: 'version', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: { '200': { description: 'Version status' } },
+        },
+      },
       '/v1/check': {
         post: {
           operationId: 'checkDependencies',

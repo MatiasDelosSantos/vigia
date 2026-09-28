@@ -91,7 +91,7 @@ export const hi: Messages = {
   'docs.when2': 'निर्भरताएँ अपडेट करने से पहले (POST /v1/check)।',
   'docs.when3': 'कोड में किसी AI मॉडल का ID सीधे लिखने से पहले।',
   'docs.mcpTitle': 'MCP सर्वर',
-  'docs.mcpText': 'Streamable HTTP एंडपॉइंट, बिना प्रमाणीकरण। टूल: package_status, check_dependencies, recent_changes, model_info, find_package।',
+  'docs.mcpText': 'Streamable HTTP एंडपॉइंट, बिना प्रमाणीकरण। टूल: package_status, check_dependencies, recent_changes, model_info, find_package, version_status।',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'पैकेज की मौजूदा स्थिति; वैकल्पिक as_of पैरामीटर बताता है कि उस समय Vigia क्या कह रहा था',
   'docs.ep.history': 'पैकेज के देखे गए बदलाव',

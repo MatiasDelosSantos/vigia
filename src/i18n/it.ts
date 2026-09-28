@@ -91,7 +91,7 @@ export const it: Messages = {
   'docs.when2': 'Prima di aggiornare le dipendenze (POST /v1/check).',
   'docs.when3': 'Prima di scrivere nel codice l’ID di un modello di IA.',
   'docs.mcpTitle': 'Server MCP',
-  'docs.mcpText': 'Endpoint HTTP streamable, senza autenticazione. Strumenti: package_status, check_dependencies, recent_changes, model_info, find_package.',
+  'docs.mcpText': 'Endpoint HTTP streamable, senza autenticazione. Strumenti: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
   'docs.restTitle': 'API REST',
   'docs.ep.package': 'stato attuale di un pacchetto; il parametro opzionale as_of restituisce ciò che Vigia affermava in quel momento',
   'docs.ep.history': 'modifiche osservate di un pacchetto',

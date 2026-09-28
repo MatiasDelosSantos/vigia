@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { LOCALES, t, type Locale, type MessageKey } from '../i18n/index.js';
+import { LOCALES, t, type AnyKey, type Locale } from '../i18n/index.js';
 
 export const esc = (v: unknown): string =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -28,96 +28,229 @@ code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-s
 .active,.available,.up_to_date{color:var(--ok)}.deprecated,.retiring,.outdated{color:var(--warn)}.yanked,.not_found_in_registry,.removed_from_catalog{color:var(--bad)}
 ul{padding-inline-start:20px}ul.changes{font-size:14px}footer{margin-top:48px;font-size:13px;color:var(--muted)}
 .langs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px}.langs a[aria-current]{font-weight:700;color:var(--fg);text-decoration:none}
+.crumbs{font-size:13px;color:var(--muted);margin:0 0 10px}.crumbs a{color:var(--muted)}.crumbs span[aria-hidden]{margin:0 6px}
+details.faq{border-bottom:1px solid var(--line);padding:10px 0}details.faq summary{cursor:pointer;font-weight:600}details.faq p{margin:8px 0 0}
+.grid{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0;list-style:none}.pager{display:flex;gap:16px;align-items:center;margin:16px 0}
 `;
+
+/** Ícono del sitio (SVG): una "V" sobre un ojo de vigía. */
+export const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1f5f8b"/><path d="M14 18h9l9 22 9-22h9L37 48h-10z" fill="#fff"/><circle cx="32" cy="14" r="4" fill="#7fd1ff"/></svg>`;
+
+const OG_LOCALE: Record<string, string> = { en: 'en_US', es: 'es_ES', pt: 'pt_BR', fr: 'fr_FR', de: 'de_DE', it: 'it_IT', nl: 'nl_NL', pl: 'pl_PL', ru: 'ru_RU', uk: 'uk_UA', tr: 'tr_TR', ar: 'ar_AR', hi: 'hi_IN', id: 'id_ID', vi: 'vi_VN', ja: 'ja_JP', ko: 'ko_KR', zh: 'zh_CN' };
+
+/** Migas de pan visibles + su JSON-LD (BreadcrumbList). */
+export function crumbs(L: Locale, items: Array<[label: string, path: string | null]>): { html: string; ld: unknown } {
+  const all: Array<[string, string | null]> = [[t(L, 'crumb.home'), '/'], ...items];
+  const html = `<nav class="crumbs" aria-label="breadcrumb">${all
+    .map(([label, path], i) => (path && i < all.length - 1 ? `<a href="${esc(localeUrl(L, path).slice(config.publicUrl.length))}">${esc(label)}</a>` : `<span>${esc(label)}</span>`))
+    .join('<span aria-hidden="true">›</span>')}</nav>`;
+  const ld = {
+    '@type': 'BreadcrumbList',
+    itemListElement: all.map(([label, path], i) => ({ '@type': 'ListItem', position: i + 1, name: label, ...(path ? { item: localeUrl(L, path) } : {}) })),
+  };
+  return { html, ld };
+}
 
 export function layout(
   L: Locale,
-  opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string },
+  opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string; singleLanguage?: boolean },
 ): string {
   const url = localeUrl(L, opts.path);
-  const alternates = LOCALES.map((x) => `<link rel="alternate" hreflang="${x.lang}" href="${esc(localeUrl(x, opts.path))}">`).join('');
-  const langLinks = LOCALES.map(
+  const alternates = opts.singleLanguage ? '' : LOCALES.map((x) => `<link rel="alternate" hreflang="${x.lang}" href="${esc(localeUrl(x, opts.path))}">`).join('');
+  const langLinks = opts.singleLanguage ? '' : LOCALES.map(
     (x) => `<a href="${esc(localeUrl(x, opts.path))}" hreflang="${x.lang}" lang="${x.lang}"${x === L ? ' aria-current="page"' : ''}>${esc(x.name)}</a>`,
   ).join('');
   const home = L.prefix ? `${L.prefix}/` : '/';
+  const ldGraph = opts.ld === undefined ? null : Array.isArray(opts.ld) ? { '@context': 'https://schema.org', '@graph': opts.ld } : opts.ld;
+  const og = [
+    ['og:type', 'website'],
+    ['og:site_name', 'Vigia'],
+    ['og:title', opts.title],
+    ['og:description', opts.description],
+    ['og:url', url],
+    ['og:locale', OG_LOCALE[L.code] ?? 'en_US'],
+  ]
+    .map(([p, c]) => `<meta property="${p}" content="${esc(c)}">`)
+    .join('');
   return `<!doctype html><html lang="${L.lang}" dir="${L.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(opts.title)}</title><meta name="description" content="${esc(opts.description)}"><link rel="canonical" href="${esc(url)}">
-${alternates}<link rel="alternate" hreflang="x-default" href="${esc(localeUrl(LOCALES[0]!, opts.path))}">
+${alternates}${opts.singleLanguage ? '' : `<link rel="alternate" hreflang="x-default" href="${esc(localeUrl(LOCALES[0]!, opts.path))}">`}
 ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.publicUrl + opts.mdPath)}">` : ''}
 <link rel="alternate" type="application/json" href="${esc(config.publicUrl)}/openapi.json" title="OpenAPI">
-${opts.ld ? `<script type="application/ld+json">${jsonLd(opts.ld)}</script>` : ''}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#1f5f8b">
+${og}<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(opts.title)}"><meta name="twitter:description" content="${esc(opts.description)}">
+${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : ''}
 <style>${CSS}</style></head><body><main>
-<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
+<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
 ${opts.body}
-<footer>${esc(t(L, 'footer.text'))} <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
+<footer>${esc(t(L, 'footer.text'))} <a href="${L.prefix}/status">${esc(t(L, 'nav.status'))}</a> · <a href="/terms">${esc(t(L, 'footer.terms'))}</a> · <a href="/privacy">${esc(t(L, 'footer.privacy'))}</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
 <nav class="langs" aria-label="${esc(t(L, 'footer.languages'))}">${langLinks}</nav></footer>
 </main></body></html>`;
 }
 
 const fmtDate = (s: unknown) => (s ? `<span dir="ltr">${esc(String(s).replace('T', ' ').replace(/\.\d+Z$|Z$/, ' UTC'))}</span>` : '<span class="muted">—</span>');
 const row = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
-const statusLabel = (L: Locale, s: string) => esc(t(L, `status.${s}` as MessageKey) ?? s);
+const statusLabel = (L: Locale, s: string) => esc(t(L, `status.${s}` as AnyKey) ?? s);
 const pkgPath = (d: any) => `/${d.ecosystem}/${d.entity.slice(d.ecosystem.length + 1)}`;
 
-export function packageHtml(L: Locale, view: any, history: any[]): string {
+export interface PackageExtras {
+  versions: Array<{ version: string; published_at: Date | null; prerelease: boolean; withdrawn: boolean }>;
+  related: Array<{ ecosystem: string; name: string }>;
+}
+
+const daysSince = (iso: string | null | undefined) => (iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000) : null);
+const dateOnly = (iso: string | null | undefined) => (iso ? String(iso).slice(0, 10) : '—');
+
+export function packageHtml(L: Locale, view: any, history: any[], extras: PackageExtras): string {
   const d = view.data;
   const m = view.meta;
   const latest = d.latest ?? {};
+  const mt = d.maintenance ?? {};
+  const eco = d.ecosystem as 'npm' | 'pypi';
+  const ecoLabel = eco === 'npm' ? 'npm' : 'PyPI';
+  const runtime = eco === 'npm' ? 'Node.js' : 'Python';
   const none = `<span class="muted">${esc(t(L, 'pkg.noneDeclared'))}</span>`;
-  const reqs =
-    d.ecosystem === 'npm'
-      ? d.requires?.engines ? `<code>${esc(JSON.stringify(d.requires.engines))}</code>` : none
-      : d.requires?.python ? `<code>python ${esc(d.requires.python)}</code>` : none;
+  const reqText: string | null = eco === 'npm' ? (d.requires?.engines ? JSON.stringify(d.requires.engines) : null) : d.requires?.python ? `python ${d.requires.python}` : null;
+  const reqs = reqText ? `<code>${esc(reqText)}</code>` : none;
+  const peerNames = d.requires?.peer_dependencies ? Object.keys(d.requires.peer_dependencies) : [];
+  const relatedSet = new Set(extras.related.map((r) => r.name));
   const peers = d.requires?.peer_dependencies
-    ? Object.entries(d.requires.peer_dependencies).map(([k, v]) => `<code>${esc(k)} ${esc(v)}</code>`).join(' ')
+    ? Object.entries(d.requires.peer_dependencies)
+        .map(([k, v]) => (relatedSet.has(k) ? `<a href="${L.prefix}/${eco}/${esc(k)}"><code>${esc(k)} ${esc(v)}</code></a>` : `<code>${esc(k)} ${esc(v)}</code>`))
+        .join(' ')
     : '<span class="muted">—</span>';
   const tags = d.dist_tags ? Object.entries(d.dist_tags).map(([k, v]) => `<code>${esc(k)}: ${esc(v)}</code>`).join(' ') : '';
   const version = latest.version ?? t(L, 'pkg.unknown');
-  // Descripción y mensaje de deprecación vienen del registry: se muestran tal cual (sin traducir) y con lang neutro.
+  const activity = t(L, `maint.${mt.activity ?? 'unknown'}` as AnyKey);
+  const advisories: string[] = d.advisories_on_latest ?? [];
+  const path = pkgPath(d);
+  const bc = crumbs(L, [[ecoLabel, `/${eco}`], [d.name, null]]);
+
+  // Preguntas frecuentes: respuestas cortas, fechadas y verificables (lo que los buscadores de IA citan).
+  const faq: Array<[string, string]> = [];
+  if (latest.version) {
+    faq.push([
+      t(L, 'faq.latestQ', { name: d.name }),
+      t(L, 'faq.latestA', { name: d.name, version: latest.version, date: dateOnly(latest.published_at), verified: dateOnly(m.last_verified_at) }),
+    ]);
+  }
+  faq.push([
+    t(L, 'faq.deprecatedQ', { name: d.name }),
+    d.deprecation ? t(L, 'faq.deprecatedYes', { name: d.name, message: String(d.deprecation.message ?? '').slice(0, 200) }) : t(L, 'faq.deprecatedNo', { name: d.name }),
+  ]);
+  faq.push([
+    t(L, 'faq.requiresQ', { name: d.name, runtime }),
+    reqText ? t(L, 'faq.requiresA', { name: d.name, version, req: reqText }) : t(L, 'faq.requiresNone', { name: d.name, version, runtime }),
+  ]);
+  if (latest.version) {
+    faq.push([
+      t(L, 'faq.vulnQ', { name: d.name, version: latest.version }),
+      advisories.length
+        ? t(L, 'faq.vulnYes', { name: d.name, version: latest.version, count: advisories.length, ids: advisories.slice(0, 5).join(', ') })
+        : t(L, 'faq.vulnNo', { name: d.name, version: latest.version }),
+    ]);
+  }
+  if (mt.last_release_at) {
+    faq.push([
+      t(L, 'faq.maintQ', { name: d.name }),
+      t(L, 'faq.maintA', { name: d.name, count: mt.releases_last_12m ?? 0, days: mt.days_since_last_release ?? daysSince(mt.last_release_at) ?? 0, activity }),
+    ]);
+  }
+
+  const versionsRows = extras.versions
+    .map(
+      (v) =>
+        `<tr><td><code dir="ltr">${esc(v.version)}</code>${v.prerelease ? ` <span class="muted">${esc(t(L, 'versions.prerelease'))}</span>` : ''}${v.withdrawn ? ` <span class="badge deprecated">${esc(t(L, 'versions.withdrawn'))}</span>` : ''}</td><td>${fmtDate(v.published_at?.toISOString())}</td></tr>`,
+    )
+    .join('');
+
   const body = `
-<p class="muted">${esc(d.ecosystem)} · <span dir="ltr">${esc(d.entity)}</span></p>
+${bc.html}
+<p class="muted">${esc(ecoLabel)} · <span dir="ltr">${esc(d.entity)}</span></p>
 <h1><span dir="ltr">${esc(d.name)}</span> <span class="badge ${esc(d.status)}">${statusLabel(L, d.status)}</span></h1>
 ${d.description ? `<p dir="auto" lang="und">${esc(d.description)}</p>` : ''}
 <div class="card"><table>
 ${row(t(L, 'pkg.latest'), `<strong dir="ltr">${esc(latest.version ?? '—')}</strong>`)}
 ${row(t(L, 'pkg.published'), fmtDate(latest.published_at))}
 ${d.deprecation ? row(t(L, 'pkg.deprecation'), `<span dir="auto" lang="und">${esc(d.deprecation.message)}</span>`) : ''}
-${row(d.ecosystem === 'npm' ? t(L, 'pkg.requiresEngines') : t(L, 'pkg.requires'), reqs)}
-${d.ecosystem === 'npm' ? row(t(L, 'pkg.peers'), peers) : ''}
+${row(eco === 'npm' ? t(L, 'pkg.requiresEngines') : t(L, 'pkg.requires'), reqs)}
+${eco === 'npm' ? row(t(L, 'pkg.peers'), peers) : ''}
 ${tags ? row(t(L, 'pkg.distTags'), tags) : ''}
 ${row(t(L, 'pkg.license'), esc(d.license ?? '—'))}
-${row(t(L, 'pkg.advisories'), d.advisories_on_latest?.length ? d.advisories_on_latest.map((a: string) => `<code>${esc(a)}</code>`).join(' ') : esc(t(L, 'pkg.noneKnown')))}
+${row(t(L, 'pkg.advisories'), advisories.length ? advisories.map((a) => `<a href="https://osv.dev/vulnerability/${encodeURIComponent(a)}" rel="nofollow"><code>${esc(a)}</code></a>`).join(' ') : esc(t(L, 'pkg.noneKnown')))}
 ${row(t(L, 'pkg.lastVerified'), fmtDate(m.last_verified_at))}
 ${row(t(L, 'pkg.sources'), m.sources.map((s: string) => `<a href="${esc(s)}" rel="nofollow">${esc(new URL(s).host)}</a>`).join(', '))}
 </table></div>
+
+${
+  mt.total_versions
+    ? `<h2>${esc(t(L, 'maint.title'))}</h2>
+<div class="card"><table>
+${row(t(L, 'maint.activity'), `<span class="badge ${mt.activity === 'active' ? 'active' : mt.activity === 'dormant' ? 'yanked' : 'deprecated'}">${esc(activity)}</span>`)}
+${row(t(L, 'maint.lastRelease'), mt.last_release_at ? `${fmtDate(mt.last_release_at)} · ${esc(t(L, 'maint.daysAgo', { days: mt.days_since_last_release ?? 0 }))}` : '—')}
+${row(t(L, 'maint.releases12m'), esc(mt.releases_last_12m ?? 0))}
+${row(t(L, 'maint.totalVersions'), esc(mt.total_versions ?? 0))}
+</table></div>
+<p class="muted">${esc(t(L, 'maint.note'))}</p>`
+    : ''
+}
+
+${
+  extras.versions.length
+    ? `<h2>${esc(t(L, 'versions.title'))}</h2>
+<div class="card"><table><tr><th>${esc(t(L, 'versions.colVersion'))}</th><th>${esc(t(L, 'versions.colDate'))}</th></tr>${versionsRows}</table></div>
+<p class="muted">${esc(t(L, 'versions.showing', { n: extras.versions.length, total: mt.total_versions ?? extras.versions.length }))} <a href="/v1/packages${esc(path)}/versions" rel="nofollow">JSON</a></p>`
+    : ''
+}
+
+<h2>${esc(t(L, 'faq.title'))}</h2>
+${faq.map(([q, a]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}
+
 <h2>${esc(t(L, 'pkg.changes'))}</h2>
 ${
   history.length
     ? `<ul class="changes">${history.map((h) => `<li>${fmtDate(h.detected_at)} — <strong>${esc(h.kind)}</strong> ${h.predicate === 'latest_version' ? `<span dir="ltr">${esc(h.old_value?.version)} → ${esc(h.new_value?.version)}</span>` : ''}</li>`).join('')}</ul>`
     : `<p class="muted">${esc(t(L, 'pkg.noChanges'))}</p>`
 }
+
+${
+  extras.related.length
+    ? `<h2>${esc(t(L, 'related.title'))}</h2><ul class="grid">${extras.related
+        .map((r) => `<li><a href="${L.prefix}/${esc(r.ecosystem)}/${esc(r.name)}" dir="ltr">${esc(r.name)}</a></li>`)
+        .join('')}</ul>`
+    : ''
+}
+
 <h2>${esc(t(L, 'pkg.forAgents'))}</h2>
-<pre>GET ${esc(config.publicUrl)}/v1/packages${esc(pkgPath(d))}</pre>`;
+<pre>GET ${esc(config.publicUrl)}/v1/packages${esc(path)}
+GET ${esc(config.publicUrl)}/v1/packages${esc(path)}/versions/{version}</pre>`;
+
   return layout(L, {
-    title: `${d.name} (${d.ecosystem}) — ${t(L, 'pkg.latestVersion')} ${version}`,
-    description: t(L, 'pkg.metaDesc', { name: d.name, version, status: t(L, `status.${d.status}` as MessageKey), verified: m.last_verified_at ?? '' }),
-    path: pkgPath(d),
-    mdPath: `${pkgPath(d)}.md`,
+    title: `${d.name} (${ecoLabel}) — ${t(L, 'pkg.latestVersion')} ${version}`,
+    description: t(L, 'pkg.metaDesc', { name: d.name, version, status: t(L, `status.${d.status}` as AnyKey), verified: dateOnly(m.last_verified_at) }),
+    path,
+    mdPath: `${path}.md`,
     body,
-    ld: {
-      '@context': 'https://schema.org',
-      '@type': 'SoftwareSourceCode',
-      name: d.name,
-      description: d.description ?? undefined,
-      version: latest.version ?? undefined,
-      dateModified: latest.published_at ?? undefined,
-      license: d.license ?? undefined,
-      codeRepository: d.repository ?? undefined,
-      programmingLanguage: d.ecosystem === 'npm' ? 'JavaScript' : 'Python',
-      sameAs: [d.links.registry],
-      url: localeUrl(L, pkgPath(d)),
-      inLanguage: L.lang,
-    },
+    ld: [
+      {
+        '@type': 'SoftwareSourceCode',
+        name: d.name,
+        description: d.description ?? undefined,
+        version: latest.version ?? undefined,
+        dateModified: latest.published_at ?? undefined,
+        license: d.license ?? undefined,
+        codeRepository: d.repository ?? undefined,
+        programmingLanguage: eco === 'npm' ? 'JavaScript' : 'Python',
+        sameAs: [d.links.registry],
+        url: localeUrl(L, path),
+        inLanguage: L.lang,
+      },
+      bc.ld,
+      {
+        '@type': 'FAQPage',
+        mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+      },
+    ],
   });
 }
 
@@ -176,7 +309,7 @@ export function listPage(L: Locale, title: string, intro: string, path: string, 
   return layout(L, { title, description: intro, path, body: `<h1>${esc(title)}</h1><p class="muted">${esc(intro)}</p>${items}` });
 }
 
-export function homeHtml(L: Locale, stats: Record<string, number | null>): string {
+export function homeHtml(L: Locale, stats: Record<string, number | null>, popular: Record<'npm' | 'pypi', string[]>): string {
   const u = esc(config.publicUrl);
   const lag = stats.release_detection_lag_p50_s;
   const body = `
@@ -189,6 +322,7 @@ ${row(t(L, 'stat.models'), esc(stats.models ?? 0))}
 ${row(t(L, 'stat.changes24h'), esc(stats.changes_24h ?? 0))}
 ${row(t(L, 'stat.lag'), lag == null ? '—' : esc(`${Math.round(lag / 60)} ${t(L, 'unit.min')}`))}
 </table></div>
+${popularLists(L, popular)}
 <h2>${esc(t(L, 'home.try'))}</h2>
 <pre>curl ${u}/v1/packages/npm/next
 curl ${u}/v1/packages/pypi/requests
@@ -208,9 +342,11 @@ curl -X POST ${u}/v1/check -H 'content-type: application/json' \\
 
 // ------------------------------------------------------------------------------------------ documentación
 
-const ENDPOINTS: Array<[string, MessageKey]> = [
+const ENDPOINTS: Array<[string, AnyKey]> = [
   ['GET /v1/packages/{npm|pypi}/{name}', 'docs.ep.package'],
   ['GET /v1/packages/{npm|pypi}/{name}/history', 'docs.ep.history'],
+  ['GET /v1/packages/{npm|pypi}/{name}/versions', 'docs.ep.versions'],
+  ['GET /v1/packages/{npm|pypi}/{name}/versions/{version}', 'docs.ep.version'],
   ['POST /v1/check', 'docs.ep.check'],
   ['GET /v1/models · GET /v1/models/{id}', 'docs.ep.models'],
   ['GET /v1/changes?since={seq}', 'docs.ep.changes'],
@@ -218,7 +354,7 @@ const ENDPOINTS: Array<[string, MessageKey]> = [
   ['GET /v1/facts/{hash}', 'docs.ep.facts'],
   ['GET /v1/stats', 'docs.ep.stats'],
 ];
-const SOURCES: MessageKey[] = ['docs.src.npm', 'docs.src.pypi', 'docs.src.models', 'docs.src.demand', 'docs.src.history'];
+const SOURCES: AnyKey[] = ['docs.src.npm', 'docs.src.pypi', 'docs.src.models', 'docs.src.demand', 'docs.src.history'];
 
 export function docsMarkdown(L: Locale): string {
   const u = config.publicUrl;
@@ -298,4 +434,95 @@ ${LOCALES.filter((L) => L.prefix)
   .map((L) => `- [${L.name}](${u}${L.prefix}/docs.md)`)
   .join('\n')}
 `;
+}
+
+// ------------------------------------------------------------------------------------------ páginas índice y otras
+
+export const BROWSE_PAGE_SIZE = 100;
+
+export function browseHtml(
+  L: Locale,
+  eco: 'npm' | 'pypi',
+  page: number,
+  data: { total: number; items: Array<{ name: string; version: string | null; published_at: string | null; status: string }> },
+): string {
+  const ecoLabel = eco === 'npm' ? 'npm' : 'PyPI';
+  const pages = Math.max(1, Math.ceil(data.total / BROWSE_PAGE_SIZE));
+  const path = page > 1 ? `/${eco}?page=${page}` : `/${eco}`;
+  const bc = crumbs(L, [[ecoLabel, null]]);
+  const link = (p: number) => `${L.prefix}/${eco}${p > 1 ? `?page=${p}` : ''}`;
+  const pager = `<nav class="pager" aria-label="pagination">${page > 1 ? `<a href="${link(page - 1)}" rel="prev">← ${esc(t(L, 'browse.prev'))}</a>` : ''}<span class="muted">${esc(t(L, 'browse.page', { n: page, total: pages }))}</span>${page < pages ? `<a href="${link(page + 1)}" rel="next">${esc(t(L, 'browse.next'))} →</a>` : ''}</nav>`;
+  const rows = data.items
+    .map(
+      (x) =>
+        `<tr><td><a href="${L.prefix}/${eco}/${esc(x.name)}" dir="ltr">${esc(x.name)}</a></td><td><code dir="ltr">${esc(x.version ?? '—')}</code></td><td><span class="badge ${esc(x.status)}">${statusLabel(L, x.status)}</span></td><td>${esc(dateOnly(x.published_at))}</td></tr>`,
+    )
+    .join('');
+  const title = t(L, 'browse.title', { eco: ecoLabel });
+  const body = `${bc.html}<h1>${esc(title)}</h1><p class="muted">${esc(t(L, 'browse.intro'))}</p>${pager}
+<div class="card"><table><tr><th>${esc(t(L, 'browse.colPackage'))}</th><th>${esc(t(L, 'browse.colVersion'))}</th><th>${esc(t(L, 'browse.colStatus'))}</th><th>${esc(t(L, 'browse.colReleased'))}</th></tr>${rows}</table></div>${pager}`;
+  return layout(L, {
+    title: page > 1 ? `${title} — ${t(L, 'browse.page', { n: page, total: pages })}` : title,
+    description: t(L, 'browse.intro'),
+    path,
+    body,
+    ld: [{ '@type': 'CollectionPage', name: title, url: localeUrl(L, path), inLanguage: L.lang }, bc.ld],
+  });
+}
+
+export function popularLists(L: Locale, lists: Record<'npm' | 'pypi', string[]>): string {
+  return (['npm', 'pypi'] as const)
+    .map((eco) => {
+      const label = eco === 'npm' ? 'npm' : 'PyPI';
+      return `<h2>${esc(t(L, 'home.popular', { eco: label }))}</h2><ul class="grid">${lists[eco]
+        .map((n) => `<li><a href="${L.prefix}/${eco}/${esc(n)}" dir="ltr">${esc(n)}</a></li>`)
+        .join('')}</ul><p><a href="${L.prefix}/${eco}">${esc(t(L, 'home.seeAll', { eco: label }))} →</a></p>`;
+    })
+    .join('');
+}
+
+export function statusHtml(L: Locale, s: Record<string, number | null>): string {
+  const lag = s.release_detection_lag_p50_s;
+  const body = `${crumbs(L, [[t(L, 'nav.status'), null]]).html}<h1>${esc(t(L, 'health.title'))}</h1><p>${esc(t(L, 'health.intro'))}</p>
+<div class="card"><table>
+${row(t(L, 'stat.npm'), esc(s.npm_tracked ?? 0))}
+${row(t(L, 'stat.pypi'), esc(s.pypi_tracked ?? 0))}
+${row(t(L, 'health.checked'), esc(s.packages_checked ?? 0))}
+${row(t(L, 'health.verified1h'), esc(s.verified_last_hour ?? 0))}
+${row(t(L, 'stat.models'), esc(s.models ?? 0))}
+${row(t(L, 'health.facts'), esc(s.facts_recorded ?? 0))}
+${row(t(L, 'health.changesTotal'), esc(s.changes_detected ?? 0))}
+${row(t(L, 'stat.changes24h'), esc(s.changes_24h ?? 0))}
+${row(t(L, 'stat.lag'), lag == null ? '—' : esc(`${Math.round(lag / 60)} ${t(L, 'unit.min')}`))}
+${row(t(L, 'health.errors'), esc(s.packages_with_errors ?? 0))}
+</table></div>
+<p class="muted">${esc(t(L, 'health.method'))}</p>
+<p><a href="/v1/stats">/v1/stats (JSON)</a></p>`;
+  return layout(L, { title: `${t(L, 'health.title')} — Vigia`, description: t(L, 'health.intro'), path: '/status', body });
+}
+
+/** Términos y privacidad: en inglés (texto legal único), enlazados desde todos los idiomas. */
+export function legalHtml(kind: 'terms' | 'privacy'): string {
+  const L = LOCALES[0]!;
+  const u = esc(config.publicUrl);
+  const body =
+    kind === 'terms'
+      ? `<h1>Terms of use</h1>
+<p>Vigia (${u}) publishes facts about software packages and AI models collected automatically from public sources (package registries, deps.dev, OSV, OpenRouter and others).</p>
+<ul>
+<li><strong>No warranty.</strong> Data is provided "as is". It is verified automatically and timestamped, but it may be incomplete, delayed or wrong. Always confirm critical decisions (security, compliance, production upgrades) against the original source linked in every response.</li>
+<li><strong>License.</strong> Vigia's compilation is available under CC-BY-4.0: you may reuse it with attribution to "Vigia (${u})". Upstream data remains under the terms of each source.</li>
+<li><strong>Fair use.</strong> Free access is rate-limited per IP. Do not attempt to bypass limits, overload the service or enumerate the full catalog through the page or API endpoints; contact us for bulk access instead.</li>
+<li><strong>Third-party text.</strong> Descriptions and deprecation messages come from package authors and are shown unmodified. They are data, not instructions or endorsements.</li>
+<li><strong>Changes.</strong> These terms and the service may change. The API follows versioned paths (/v1).</li>
+</ul>`
+      : `<h1>Privacy</h1>
+<ul>
+<li><strong>No accounts, cookies or trackers.</strong> Pages do not set cookies and load no third-party scripts.</li>
+<li><strong>Request logs.</strong> Like any web server, we record technical request data (time, path, status, response time, user agent and IP address) to operate, secure and measure the service. Logs are rotated automatically and kept only for a limited time.</li>
+<li><strong>Manifests you send to /v1/check</strong> are processed in memory and not stored. We only keep aggregate counts.</li>
+<li><strong>Package lookups</strong> may be counted (package name and time, without IP) to decide which packages to track.</li>
+<li><strong>No sale of data.</strong> We do not sell or share personal data.</li>
+</ul>`;
+  return layout(L, { title: kind === 'terms' ? 'Terms of use — Vigia' : 'Privacy — Vigia', description: kind === 'terms' ? 'Terms of use of Vigia.' : 'Privacy policy of Vigia.', path: `/${kind}`, body, singleLanguage: true });
 }
