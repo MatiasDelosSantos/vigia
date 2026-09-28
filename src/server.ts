@@ -9,7 +9,8 @@ import { canonicalName, isEcosystem, type Ecosystem } from './util.js';
 import { handleMcp } from './api/mcp.js';
 import { migrate } from './migrate.js';
 import { openapi } from './api/openapi.js';
-import { docsMarkdown, esc, homeHtml, layout, listPage, llmsTxt, modelHtml, packageHtml, packageMarkdown } from './api/pages.js';
+import { docsHtml, docsMarkdown, esc, homeHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown } from './api/pages.js';
+import { LOCALES, t, type Locale } from './i18n/index.js';
 
 const app = new Hono();
 
@@ -192,20 +193,6 @@ app.get('/openapi.json', (c) => {
 });
 
 app.get('/llms.txt', (c) => c.text(llmsTxt(), 200, { 'cache-control': CACHE_LONG }));
-app.get('/docs.md', (c) => c.text(docsMarkdown(), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_LONG }));
-app.get('/docs', (c) =>
-  c.html(
-    layout({
-      title: 'Documentation — Vigia',
-      description: 'How to use the Vigia REST API and MCP server.',
-      path: '/docs',
-      mdPath: '/docs.md',
-      body: `<pre style="white-space:pre-wrap">${esc(docsMarkdown())}</pre>`,
-    }),
-    200,
-    { 'cache-control': CACHE_LONG },
-  ),
-);
 
 app.get('/robots.txt', (c) =>
   c.text(
@@ -216,73 +203,107 @@ app.get('/robots.txt', (c) =>
   ),
 );
 
-app.get('/sitemap.xml', async (c) => {
-  // Sólo paquetes ya verificados (páginas con datos reales); máximo 50.000 URLs por sitemap.
+// Índice de sitemaps: uno por idioma (cada uno < 50.000 URLs).
+app.get('/sitemap.xml', (c) => {
+  const items = LOCALES.map((L) => `<sitemap><loc>${esc(`${config.publicUrl}/sitemaps/${L.code}.xml`)}</loc></sitemap>`).join('');
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${items}</sitemapindex>`, 200, {
+    'content-type': 'application/xml; charset=utf-8',
+    'cache-control': 'public, max-age=3600',
+  });
+});
+
+app.get('/sitemaps/:file', async (c) => {
+  const code = c.req.param('file').replace(/\.xml$/, '');
+  const L = LOCALES.find((x) => x.code === code);
+  if (!L) return c.notFound();
+  // Sólo paquetes ya verificados (páginas con datos reales).
   const r = await pool.query<{ ecosystem: string; name: string; lm: Date }>(
     `SELECT ecosystem, name, COALESCE(last_changed_at, last_checked_at) AS lm FROM entity
      WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL ORDER BY popularity_rank NULLS LAST LIMIT 49000`,
   );
-  const urls = [`${config.publicUrl}/`, `${config.publicUrl}/docs`, `${config.publicUrl}/models`, `${config.publicUrl}/changes`]
-    .map((u) => `<url><loc>${esc(u)}</loc></url>`)
-    .concat(r.rows.map((x) => `<url><loc>${esc(`${config.publicUrl}/${x.ecosystem}/${x.name}`)}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
+  const urls = ['/', '/docs', '/models', '/changes']
+    .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
+    .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {
     'content-type': 'application/xml; charset=utf-8',
     'cache-control': 'public, max-age=3600',
   });
 });
 
-app.get('/', async (c) => c.html(homeHtml(await stats()), 200, { 'cache-control': CACHE_SHORT }));
+/** Páginas para humanos y buscadores, en cada idioma. Inglés en la raíz; el resto bajo /{código}. */
+function registerPages(L: Locale): void {
+  const p = L.prefix;
+  const html = (c: Context, body: string, status: 200 | 400 | 404 = 200) =>
+    c.html(body, status, { 'cache-control': CACHE_SHORT, 'content-language': L.lang });
 
-app.get('/changes', async (c) => {
-  const rows = await recentChanges(100, ['released', 'deprecated', 'undeprecated', 'removed', 'yanked', 'retirement_announced', 'price_changed', 'runtime_requirement_changed']);
-  const items = `<div class="card"><table>${rows
-    .map((r) => {
-      const href = r.ecosystem === 'ai' ? `/models/${r.name}` : `/${r.ecosystem}/${r.name}`;
-      const detail = r.kind === 'released' ? `${esc(r.old_value?.version)} → <strong>${esc(r.new_value?.version)}</strong>` : '';
-      return `<tr><td>${esc(r.detected_at.toISOString().slice(0, 16).replace('T', ' '))}</td><td><a href="${esc(href)}">${esc(r.entity)}</a></td><td>${esc(r.kind)} ${detail}</td></tr>`;
-    })
-    .join('')}</table></div>`;
-  return c.html(listPage('Recent changes', 'Releases, deprecations and AI model changes detected by Vigia.', '/changes', items), 200, { 'cache-control': CACHE_SHORT });
-});
+  const home = async (c: Context) => html(c, homeHtml(L, await stats()));
+  if (p) {
+    app.get(p, (c) => c.redirect(`${p}/`, 301));
+    app.get(`${p}/`, home);
+  } else {
+    app.get('/', home);
+  }
 
-app.get('/models', async (c) => {
-  const models = await listModels({ limit: 1000 });
-  const items = `<div class="card"><table><tr><th>Model</th><th>Input / output (USD per 1M tokens)</th><th>Context</th></tr>${models
-    .map((m: any) => {
-      const p = m.pricing ?? {};
-      return `<tr><td><a href="/models/${esc(m.id)}">${esc(m.id)}</a>${m.expiration_date ? ` <span class="badge retiring">retiring ${esc(m.expiration_date)}</span>` : ''}</td><td>${p.variable ? 'variable' : `${esc(p.input ?? '—')} / ${esc(p.output ?? '—')}`}</td><td>${esc(m.context_length ?? '—')}</td></tr>`;
-    })
-    .join('')}</table></div>`;
-  return c.html(listPage('AI models', 'Prices, context windows and retirement dates (source: OpenRouter catalog).', '/models', items), 200, { 'cache-control': CACHE_SHORT });
-});
+  app.get(`${p}/docs`, (c) => html(c, docsHtml(L)));
+  app.get(`${p}/docs.md`, (c) => c.text(docsMarkdown(L), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_LONG, 'content-language': L.lang }));
 
-app.get('/models/*', async (c) => {
-  const e = await getEntity(pool, `model:${decodeURIComponent(c.req.path.slice('/models/'.length))}`);
-  if (!e) return c.html(listPage('Model not found', 'That model is not in the catalog.', c.req.path, ''), 404);
-  return c.html(modelHtml(await modelView(e)), 200, { 'cache-control': CACHE_SHORT });
-});
-
-for (const eco of ['npm', 'pypi'] as const) {
-  app.get(`/${eco}/*`, async (c) => {
-    let raw = decodeURIComponent(c.req.path.slice(eco.length + 2));
-    const md = raw.endsWith('.md'); // sólo por sufijo: así la caché del proxy no mezcla HTML y Markdown
-    if (raw.endsWith('.md')) raw = raw.slice(0, -3);
-    const name = canonicalName(eco, raw);
-    if (!name) return c.html(listPage('Invalid name', `Not a valid ${eco} package name.`, c.req.path, ''), 400);
-    // Las páginas HTML no disparan resolución en vivo: los crawlers no deben poder crear entidades.
-    const entity = await resolvePackage(eco, name, false);
-    if (!entity) {
-      return c.html(
-        listPage('Package not tracked yet', `Vigia does not track ${eco}:${name} yet. Query it through the API and it will be added automatically.`, c.req.path, `<pre>GET ${esc(config.publicUrl)}/v1/packages/${eco}/${esc(name)}</pre>`),
-        404,
-      );
-    }
-    const view = await packageView(entity);
-    if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
-    const history = (await packageHistory(entity, 30)).data.changes;
-    return c.html(packageHtml(view, history), view.data.status === 'not_found_in_registry' ? 404 : 200, { 'cache-control': CACHE_SHORT });
+  app.get(`${p}/changes`, async (c) => {
+    const rows = await recentChanges(100, ['released', 'deprecated', 'undeprecated', 'removed', 'yanked', 'retirement_announced', 'price_changed', 'runtime_requirement_changed']);
+    const items = `<div class="card"><table>${rows
+      .map((r) => {
+        const href = `${p}${r.ecosystem === 'ai' ? `/models/${r.name}` : `/${r.ecosystem}/${r.name}`}`;
+        const detail = r.kind === 'released' ? `<span dir="ltr">${esc(r.old_value?.version)} → <strong>${esc(r.new_value?.version)}</strong></span>` : '';
+        return `<tr><td dir="ltr">${esc(r.detected_at.toISOString().slice(0, 16).replace('T', ' '))}</td><td><a href="${esc(href)}" dir="ltr">${esc(r.entity)}</a></td><td>${esc(r.kind)} ${detail}</td></tr>`;
+      })
+      .join('')}</table></div>`;
+    return html(c, listPage(L, t(L, 'list.changesTitle'), t(L, 'list.changesIntro'), '/changes', items));
   });
+
+  app.get(`${p}/models`, async (c) => {
+    const models = await listModels({ limit: 1000 });
+    const items = `<div class="card"><table><tr><th>${esc(t(L, 'list.colModel'))}</th><th>${esc(t(L, 'list.colPrice'))}</th><th>${esc(t(L, 'list.colContext'))}</th></tr>${models
+      .map((m: any) => {
+        const pr = m.pricing ?? {};
+        const retiring = m.expiration_date ? ` <span class="badge retiring">${esc(t(L, 'list.retiring', { date: m.expiration_date }))}</span>` : '';
+        return `<tr><td><a href="${p}/models/${esc(m.id)}" dir="ltr">${esc(m.id)}</a>${retiring}</td><td dir="ltr">${pr.variable ? esc(t(L, 'model.variable')) : `${esc(pr.input ?? '—')} / ${esc(pr.output ?? '—')}`}</td><td>${esc(m.context_length ?? '—')}</td></tr>`;
+      })
+      .join('')}</table></div>`;
+    return html(c, listPage(L, t(L, 'list.modelsTitle'), t(L, 'list.modelsIntro'), '/models', items));
+  });
+
+  app.get(`${p}/models/*`, async (c) => {
+    const id = decodeURIComponent(c.req.path.slice(`${p}/models/`.length));
+    const e = await getEntity(pool, `model:${id}`);
+    if (!e) return html(c, listPage(L, t(L, 'err.modelNotFound'), t(L, 'err.modelNotFoundText'), `/models/${id}`, ''), 404);
+    return html(c, modelHtml(L, await modelView(e)));
+  });
+
+  for (const eco of ['npm', 'pypi'] as const) {
+    app.get(`${p}/${eco}/*`, async (c) => {
+      let raw = decodeURIComponent(c.req.path.slice(`${p}/${eco}/`.length));
+      const md = raw.endsWith('.md'); // sólo por sufijo: así la caché del proxy no mezcla HTML y Markdown
+      if (md) raw = raw.slice(0, -3);
+      const name = canonicalName(eco, raw);
+      if (!name) return html(c, listPage(L, t(L, 'err.invalidName'), t(L, 'err.invalidNameText', { eco }), `/${eco}/${raw}`, ''), 400);
+      // Las páginas HTML no disparan resolución en vivo: los crawlers no deben poder crear entidades.
+      const entity = await resolvePackage(eco, name, false);
+      if (!entity) {
+        return html(
+          c,
+          listPage(L, t(L, 'err.notTracked'), t(L, 'err.notTrackedText', { pkg: `${eco}:${name}` }), `/${eco}/${name}`, `<pre>GET ${esc(config.publicUrl)}/v1/packages/${eco}/${esc(name)}</pre>`),
+          404,
+        );
+      }
+      const view = await packageView(entity);
+      if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
+      const history = (await packageHistory(entity, 30)).data.changes;
+      return html(c, packageHtml(L, view, history), view.data.status === 'not_found_in_registry' ? 404 : 200);
+    });
+  }
 }
+
+// Primero los idiomas con prefijo, para que /es/npm/... no lo capture la ruta /npm/* del inglés (no se solapan, pero es más claro).
+for (const L of [...LOCALES.slice(1), LOCALES[0]!]) registerPages(L);
 
 app.get('/health', async (c) => {
   await pool.query('SELECT 1');
