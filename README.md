@@ -22,6 +22,14 @@ git archive --format=tar HEAD | ssh root@76.13.235.122 'tar xf - -C /opt/vigia &
 - Nginx: `deploy/nginx-vigia.conf` → `/etc/nginx/sites-available/vigia` (rate limit por IP + micro-caché). Certificado Let's Encrypt propio con renovación automática.
 - Contenedores: `vigia-db` (127.0.0.1:5435), `vigia-api` (127.0.0.1:3005), `vigia-worker`, con límites de memoria/CPU.
 
+## Descubrimiento
+- **Registro oficial MCP**: publicado como `cloud.coredls.vigia/vigia` (autenticación por dominio vía HTTP).
+  La clave privada y el binario `mcp-publisher` están en el VPS en `/opt/vigia-registry` (permisos 700); la pública se sirve en
+  `/.well-known/mcp-registry-auth` desde `/var/www/vigia-wellknown/`. Para publicar una versión nueva: subir `version` en
+  `server.json`, copiarlo a `/opt/vigia-registry/` y correr allí `login http` + `publish` (ver historial del proyecto).
+- **IndexNow**: el worker notifica cada 30 min las páginas nuevas o cambiadas (clave en `INDEXNOW_KEY` del `.env` del VPS).
+- **Server card**: `/.well-known/mcp/server-card.json` · **llms.txt**, **sitemap.xml**, **openapi.json**.
+
 ## Operación
 ```bash
 ssh root@76.13.235.122 'docker logs --tail 50 vigia-worker'
