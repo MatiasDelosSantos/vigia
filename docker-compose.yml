@@ -1,0 +1,64 @@
+# Despliegue en el VPS (/opt/vigia). Puertos sólo en 127.0.0.1: Nginx es la única puerta de entrada.
+name: vigia
+
+services:
+  vigia-db:
+    image: postgres:17-alpine
+    container_name: vigia-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vigia
+      POSTGRES_USER: vigia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en .env}
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=40"]
+    volumes:
+      - vigia-db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vigia -d vigia"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 768m
+    cpus: 0.75
+
+  vigia-api:
+    build: .
+    image: vigia:latest
+    container_name: vigia-api
+    restart: unless-stopped
+    command: ["node", "dist/server.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://vigia:${POSTGRES_PASSWORD}@vigia-db:5432/vigia
+      PORT: "3005"
+    ports:
+      - "127.0.0.1:3005:3005"
+    depends_on:
+      vigia-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3005/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 384m
+    cpus: 0.5
+
+  vigia-worker:
+    image: vigia:latest
+    container_name: vigia-worker
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://vigia:${POSTGRES_PASSWORD}@vigia-db:5432/vigia
+    depends_on:
+      vigia-db:
+        condition: service_healthy
+    mem_limit: 384m
+    cpus: 0.5
+
+volumes:
+  vigia-db-data:

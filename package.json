@@ -1,0 +1,38 @@
+{
+  "name": "vigia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hechos verificados y fechados sobre el estado del software para agentes de IA",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start:api": "node dist/server.js",
+    "start:worker": "node dist/worker.js",
+    "migrate": "node dist/migrate.js",
+    "dev:api": "tsx watch src/server.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "@renovatebot/pep440": "^4.2.4",
+    "hono": "^4.13.10",
+    "npm-high-impact": "^1.13.0",
+    "pg": "^8.23.0",
+    "semver": "^7.8.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "@types/semver": "^7.8.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
