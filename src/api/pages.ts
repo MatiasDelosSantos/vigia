@@ -422,6 +422,8 @@ export function llmsTxt(): string {
 
 ## API
 - [npm package status](${u}/v1/packages/npm/react): GET /v1/packages/{npm|pypi}/{name}
+- [Version status and vulnerabilities](${u}/v1/packages/npm/express/versions/4.17.1): GET /v1/packages/{npm|pypi}/{name}/versions/{version}
+- [Version history and maintenance](${u}/v1/packages/npm/react/versions?stable=true): GET /v1/packages/{npm|pypi}/{name}/versions
 - [Check dependencies](${u}/docs.md): POST /v1/check
 - [AI models](${u}/v1/models): prices, context windows and retirement dates
 - [Recent changes](${u}/v1/changes): changefeed

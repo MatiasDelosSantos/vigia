@@ -22,6 +22,16 @@ git archive --format=tar HEAD | ssh root@76.13.235.122 'tar xf - -C /opt/vigia &
 - Nginx: `deploy/nginx-vigia.conf` → `/etc/nginx/sites-available/vigia` (rate limit por IP + micro-caché). Certificado Let's Encrypt propio con renovación automática.
 - Contenedores: `vigia-db` (127.0.0.1:5435), `vigia-api` (127.0.0.1:3005), `vigia-worker`, con límites de memoria/CPU.
 
+## Datos por versión
+- `package_version`: historial completo (npm desde deps.dev, PyPI desde su API JSON); base de las señales de mantenimiento (heurística por fechas de versiones estables).
+- Vulnerabilidades por versión exacta desde OSV (`osv_cache`, 6 h) con la menor versión que corrige todas (`nearest_fixed_version`).
+- `/v1/check` informa además las vulnerabilidades de la versión mínima que admite cada rango.
+
+## SEO
+- Páginas índice por popularidad (`/{idioma}/npm`, `/{idioma}/pypi`), migas de pan, FAQ con `FAQPage`, paquetes relacionados, favicon, Open Graph, `/status`, `/terms`, `/privacy`.
+- Indexación por etapas: el sitemap en inglés lleva todos los paquetes; cada traducción, sólo el top `SITEMAP_LOCALIZED_TOP` (300) por ecosistema. Subirlo en el `.env` cuando Google indexe bien.
+- Google Search Console verificado (cuenta dlsantos.matias@gmail.com) con el archivo servido por Nginx; sitemap enviado.
+
 ## Idiomas
 Páginas HTML y documentación en 18 idiomas: en (raíz, canónico/x-default), es, pt, fr, de, it, nl, pl, ru, uk, tr, ar (RTL), hi, id, vi, ja, ko, zh (zh-Hans), bajo `/{código}/...`.
 Diccionarios en `src/i18n/*.ts` (TypeScript exige todas las claves; `test/i18n.test.ts` verifica los marcadores `{var}`).
