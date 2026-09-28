@@ -227,8 +227,8 @@ export { canonicalName };
 
 // ------------------------------------------------------------------------------------ versiones
 
-export async function versionList(entity: EntityRow, limit: number) {
-  const rows = await recentVersions(pool, entity.id, limit);
+export async function versionList(entity: EntityRow, limit: number, stableOnly = false) {
+  const rows = await recentVersions(pool, entity.id, limit, stableOnly);
   const m = await maintenanceOf(pool, entity.id);
   return {
     data: {

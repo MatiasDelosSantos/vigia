@@ -36,7 +36,7 @@ export function openapi() {
         get: {
           operationId: 'listVersions',
           summary: 'Version history (newest first) and maintenance signals',
-          parameters: [eco, name, { name: 'limit', in: 'query', schema: { type: 'integer', default: 100, maximum: 1000 } }, { name: 'all', in: 'query', schema: { type: 'boolean' } }],
+          parameters: [eco, name, { name: 'limit', in: 'query', schema: { type: 'integer', default: 100, maximum: 1000 } }, { name: 'all', in: 'query', schema: { type: 'boolean' } }, { name: 'stable', in: 'query', schema: { type: 'boolean' }, description: 'Only stable (non pre-release) versions' }],
           responses: { '200': { description: 'Versions' } },
         },
       },

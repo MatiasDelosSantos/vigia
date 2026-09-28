@@ -76,7 +76,7 @@ app.get('/v1/packages/*', async (c) => {
   if (suffix === 'versions') {
     c.header('cache-control', CACHE_SHORT);
     const limit = c.req.query('all') === 'true' ? 5000 : Math.min(Number(c.req.query('limit') ?? 100) || 100, 1000);
-    return c.json(await versionList(entity, limit));
+    return c.json(await versionList(entity, limit, c.req.query('stable') === 'true'));
   }
   if (suffix === 'version') {
     if (!version || version.length > 100 || !/^[0-9A-Za-z.+_!-]+$/.test(version)) return c.json({ error: 'invalid_version' }, 400);
@@ -331,7 +331,7 @@ function registerPages(L: Locale): void {
       if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
       const history = (await packageHistory(entity, 30)).data.changes;
       const peers = Object.keys((view.data as any).requires?.peer_dependencies ?? {});
-      const [versions, related] = await Promise.all([recentVersions(pool, entity.id, 20), relatedPackages(entity, peers)]);
+      const [versions, related] = await Promise.all([recentVersions(pool, entity.id, 20, true), relatedPackages(entity, peers)]);
       return html(c, packageHtml(L, view, history, { versions, related }), view.data.status === 'not_found_in_registry' ? 404 : 200);
     });
   }

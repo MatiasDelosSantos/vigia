@@ -199,7 +199,7 @@ ${
   extras.versions.length
     ? `<h2>${esc(t(L, 'versions.title'))}</h2>
 <div class="card"><table><tr><th>${esc(t(L, 'versions.colVersion'))}</th><th>${esc(t(L, 'versions.colDate'))}</th></tr>${versionsRows}</table></div>
-<p class="muted">${esc(t(L, 'versions.showing', { n: extras.versions.length, total: mt.total_versions ?? extras.versions.length }))} <a href="/v1/packages${esc(path)}/versions" rel="nofollow">JSON</a></p>`
+<p class="muted">${esc(t(L, 'versions.showing', { n: extras.versions.length, total: mt.stable_versions ?? extras.versions.length }))} <a href="/v1/packages${esc(path)}/versions?stable=true" rel="nofollow">JSON</a></p>`
     : ''
 }
 

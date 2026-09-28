@@ -48,11 +48,11 @@ export async function versionCount(db: Queryable, entityId: number): Promise<num
   return r.rows[0]?.n ?? 0;
 }
 
-export async function recentVersions(db: Queryable, entityId: number, limit: number) {
+export async function recentVersions(db: Queryable, entityId: number, limit: number, stableOnly = false) {
   const r = await db.query<{ version: string; published_at: Date | null; prerelease: boolean; withdrawn: boolean }>(
-    `SELECT version, published_at, prerelease, withdrawn FROM package_version WHERE entity_id = $1
+    `SELECT version, published_at, prerelease, withdrawn FROM package_version WHERE entity_id = $1 AND (NOT $3 OR NOT prerelease)
      ORDER BY published_at DESC NULLS LAST, version DESC LIMIT $2`,
-    [entityId, limit],
+    [entityId, limit, stableOnly],
   );
   return r.rows;
 }
