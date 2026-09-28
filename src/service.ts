@@ -4,7 +4,7 @@ import { refreshEntity, intervalFor } from './connectors/index.js';
 import { factsOf, getEntity, recordDemand, upsertEntity, type EntityRow, type FactRow } from './facts.js';
 import { canonicalName, entityKey, type Ecosystem } from './util.js';
 
-export const DATA_LICENSE = 'CC-BY-4.0 (Vigía); los datos de origen mantienen los términos de cada fuente';
+export const DATA_LICENSE = "CC-BY-4.0 (Vigia); upstream data remains under each source's terms";
 
 const inflight = new Map<string, Promise<EntityRow | null>>();
 
@@ -110,7 +110,7 @@ export async function packageHistory(entity: EntityRow, limit = 50) {
   const firstSeen = await pool.query(`SELECT min(recorded_from) AS t FROM fact WHERE entity_id = $1`, [entity.id]);
   return {
     data: { entity: entity.key, changes: r.rows },
-    meta: { observed_since: iso(firstSeen.rows[0]?.t), note: 'Historial observado por Vigía desde que empezó a seguir la entidad.', license: DATA_LICENSE },
+    meta: { observed_since: iso(firstSeen.rows[0]?.t), note: 'History as observed by Vigia since it started tracking this entity.', license: DATA_LICENSE },
   };
 }
 
@@ -138,7 +138,7 @@ export async function modelView(entity: EntityRow, asOf?: Date) {
       as_of: (asOf ?? new Date()).toISOString(),
       last_verified_at: iso(f.get('pricing')?.last_verified_at),
       source: 'https://openrouter.ai/api/v1/models',
-      note: 'Precios de referencia según OpenRouter (agregador); pueden diferir del precio directo del proveedor.',
+      note: "Reference prices from OpenRouter (aggregator); they may differ from the provider's direct pricing.",
       untrusted_text_fields: ['name'],
       license: DATA_LICENSE,
     },

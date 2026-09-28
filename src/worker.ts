@@ -4,6 +4,7 @@ import { migrate } from './migrate.js';
 import { seed } from './seed.js';
 import { refreshEntity } from './connectors/index.js';
 import type { EntityRow } from './facts.js';
+import { submitIndexNow } from './indexnow.js';
 
 const BATCH = 24;
 const LEASE = "interval '10 minutes'"; // si el worker muere a mitad de camino, la entidad vuelve a la cola
@@ -42,10 +43,20 @@ async function processEntity(entity: EntityRow): Promise<void> {
   }
 }
 
+const INDEXNOW_EVERY_MS = 30 * 60_000;
+
 async function loop(): Promise<void> {
   let processed = 0;
   let lastLog = Date.now();
+  // La primera notificación espera 20 min para que la verificación inicial haya avanzado.
+  let lastIndexNow = Date.now() - INDEXNOW_EVERY_MS + 20 * 60_000;
   while (!stopping) {
+    if (Date.now() - lastIndexNow > INDEXNOW_EVERY_MS) {
+      lastIndexNow = Date.now();
+      submitIndexNow()
+        .then((n) => n && console.log(`indexnow: ${n} URLs notificadas`))
+        .catch((err) => console.error('indexnow falló:', err instanceof Error ? err.message : err));
+    }
     const batch = await claim();
     if (batch.length === 0) {
       await new Promise((r) => setTimeout(r, 2000));

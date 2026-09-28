@@ -26,9 +26,15 @@ app.use('*', async (c, next) => {
   console.log(`${c.req.method} ${c.req.path} ${c.res.status} ${Math.round(performance.now() - t0)}ms "${ua.slice(0, 120)}"`);
 });
 
+// Archivo de verificación de IndexNow: /{clave}.txt
+app.use('*', async (c, next) => {
+  if (config.indexNowKey && c.req.path === `/${config.indexNowKey}.txt`) return c.text(config.indexNowKey);
+  await next();
+});
+
 app.onError((err, c) => {
   console.error(err);
-  return c.json({ error: 'internal_error', message: 'Error interno; reintentá en unos segundos.' }, 500);
+  return c.json({ error: 'internal_error', message: 'Internal error; retry in a few seconds.' }, 500);
 });
 
 function parseAsOf(c: Context): Date | undefined | 'invalid' {
@@ -53,21 +59,21 @@ async function notFound(c: Context, eco: Ecosystem, name: string) {
   for (let len = Math.max(3, name.length - 2); len >= 3 && suggestions.length === 0; len = len > 6 ? Math.floor(len / 2) : len - 1) {
     suggestions = (await search(name.slice(0, len), eco, 5)).map((s) => s.name).filter((n) => n !== name);
   }
-  return c.json({ error: 'not_found', message: `El paquete ${eco}:${name} no existe en el registry.`, did_you_mean: suggestions }, 404);
+  return c.json({ error: 'not_found', message: `Package ${eco}:${name} does not exist in the registry.`, did_you_mean: suggestions }, 404);
 }
 
 // ----------------------------------------------------------------------------------------- API REST
 
 app.get('/v1/packages/*', async (c) => {
   const { eco, name: raw, suffix } = splitPackagePath(c.req.path.slice('/v1/packages/'.length));
-  if (!isEcosystem(eco)) return c.json({ error: 'invalid_ecosystem', message: 'Ecosistemas soportados: npm, pypi' }, 400);
+  if (!isEcosystem(eco)) return c.json({ error: 'invalid_ecosystem', message: 'Supported ecosystems: npm, pypi' }, 400);
   const name = canonicalName(eco, raw);
-  if (!name) return c.json({ error: 'invalid_name', message: `Nombre de paquete inválido para ${eco}.` }, 400);
+  if (!name) return c.json({ error: 'invalid_name', message: `Invalid package name for ${eco}.` }, 400);
   const asOf = parseAsOf(c);
-  if (asOf === 'invalid') return c.json({ error: 'invalid_as_of', message: 'as_of debe ser una fecha ISO-8601.' }, 400);
+  if (asOf === 'invalid') return c.json({ error: 'invalid_as_of', message: 'as_of must be an ISO-8601 timestamp.' }, 400);
 
   const entity = await resolvePackage(eco, name, !asOf);
-  if (!entity) return c.json({ error: 'no_data', message: 'Vigía no tenía datos de este paquete en esa fecha.' }, 404);
+  if (!entity) return c.json({ error: 'no_data', message: 'Vigia had no data for this package at that time.' }, 404);
   if (suffix === 'history') {
     c.header('cache-control', CACHE_SHORT);
     return c.json(await packageHistory(entity));
@@ -80,16 +86,16 @@ app.get('/v1/packages/*', async (c) => {
 
 app.post('/v1/check', async (c) => {
   const body = await c.req.json().catch(() => null);
-  if (!body || !isEcosystem(body.ecosystem)) return c.json({ error: 'invalid_body', message: 'Se requiere {"ecosystem":"npm"|"pypi", "manifest": "..."} o "dependencies".' }, 400);
+  if (!body || !isEcosystem(body.ecosystem)) return c.json({ error: 'invalid_body', message: 'Expected {"ecosystem":"npm"|"pypi", "manifest": "..."} or "dependencies".' }, 400);
   const eco: Ecosystem = body.ecosystem;
   let deps: Dependency[];
   try {
     if (typeof body.manifest === 'string') deps = eco === 'npm' ? parsePackageJson(body.manifest) : parseRequirements(body.manifest);
     else if (body.dependencies && typeof body.dependencies === 'object')
       deps = Object.entries(body.dependencies).filter(([, v]) => typeof v === 'string').map(([name, spec]) => ({ name, spec: spec as string }));
-    else return c.json({ error: 'invalid_body', message: 'Falta "manifest" o "dependencies".' }, 400);
+    else return c.json({ error: 'invalid_body', message: 'Missing "manifest" or "dependencies".' }, 400);
   } catch {
-    return c.json({ error: 'invalid_manifest', message: 'No se pudo parsear el manifest.' }, 400);
+    return c.json({ error: 'invalid_manifest', message: 'Could not parse the manifest.' }, 400);
   }
   return c.json(await checkDependencies(eco, deps));
 });
@@ -112,7 +118,7 @@ app.get('/v1/models/*', async (c) => {
   const e = await getEntity(pool, `model:${id}`);
   if (!e) {
     const similar = await listModels({ q: id.split('/').pop(), limit: 10 });
-    return c.json({ error: 'not_found', message: `No existe el modelo ${id} en el catálogo.`, did_you_mean: similar.map((m: any) => m.id) }, 404);
+    return c.json({ error: 'not_found', message: `Model ${id} is not in the catalog.`, did_you_mean: similar.map((m: any) => m.id) }, 404);
   }
   c.header('cache-control', CACHE_SHORT);
   return c.json(await modelView(e, asOf));
@@ -161,6 +167,25 @@ app.all('/mcp', async (c) => {
 
 // ----------------------------------------------------------------------------------------- descubrimiento y páginas
 
+// MCP Server Card (propuesta SEP-1649/2127, todavía no estándar): barato de servir y útil para descubrimiento.
+app.get('/.well-known/mcp/server-card.json', (c) =>
+  c.json(
+    {
+      name: 'cloud.coredls.vigia/vigia',
+      title: 'Vigia',
+      description: 'Verified, dated facts on npm/PyPI package versions, deprecations, requirements, and AI model prices.',
+      version: '0.1.0',
+      websiteUrl: config.publicUrl,
+      documentationUrl: `${config.publicUrl}/docs`,
+      remotes: [{ type: 'streamable-http', url: `${config.publicUrl}/mcp` }],
+      authentication: { required: false },
+      tools: ['package_status', 'check_dependencies', 'recent_changes', 'model_info', 'find_package'],
+    },
+    200,
+    { 'cache-control': CACHE_LONG, 'access-control-allow-origin': '*' },
+  ),
+);
+
 app.get('/openapi.json', (c) => {
   c.header('cache-control', CACHE_LONG);
   return c.json(openapi());
@@ -171,8 +196,8 @@ app.get('/docs.md', (c) => c.text(docsMarkdown(), 200, { 'content-type': 'text/m
 app.get('/docs', (c) =>
   c.html(
     layout({
-      title: 'Documentación — Vigía',
-      description: 'Cómo usar la API REST y el servidor MCP de Vigía.',
+      title: 'Documentation — Vigia',
+      description: 'How to use the Vigia REST API and MCP server.',
       path: '/docs',
       mdPath: '/docs.md',
       body: `<pre style="white-space:pre-wrap">${esc(docsMarkdown())}</pre>`,
@@ -217,23 +242,23 @@ app.get('/changes', async (c) => {
       return `<tr><td>${esc(r.detected_at.toISOString().slice(0, 16).replace('T', ' '))}</td><td><a href="${esc(href)}">${esc(r.entity)}</a></td><td>${esc(r.kind)} ${detail}</td></tr>`;
     })
     .join('')}</table></div>`;
-  return c.html(listPage('Cambios recientes', 'Releases, deprecaciones y cambios de modelos de IA detectados por Vigía.', '/changes', items), 200, { 'cache-control': CACHE_SHORT });
+  return c.html(listPage('Recent changes', 'Releases, deprecations and AI model changes detected by Vigia.', '/changes', items), 200, { 'cache-control': CACHE_SHORT });
 });
 
 app.get('/models', async (c) => {
   const models = await listModels({ limit: 1000 });
-  const items = `<div class="card"><table><tr><th>Modelo</th><th>Entrada / salida (US$ por M tokens)</th><th>Contexto</th></tr>${models
+  const items = `<div class="card"><table><tr><th>Model</th><th>Input / output (USD per 1M tokens)</th><th>Context</th></tr>${models
     .map((m: any) => {
       const p = m.pricing ?? {};
-      return `<tr><td><a href="/models/${esc(m.id)}">${esc(m.id)}</a>${m.expiration_date ? ` <span class="badge retiring">retiro ${esc(m.expiration_date)}</span>` : ''}</td><td>${p.variable ? 'variable' : `${esc(p.input ?? '—')} / ${esc(p.output ?? '—')}`}</td><td>${esc(m.context_length ?? '—')}</td></tr>`;
+      return `<tr><td><a href="/models/${esc(m.id)}">${esc(m.id)}</a>${m.expiration_date ? ` <span class="badge retiring">retiring ${esc(m.expiration_date)}</span>` : ''}</td><td>${p.variable ? 'variable' : `${esc(p.input ?? '—')} / ${esc(p.output ?? '—')}`}</td><td>${esc(m.context_length ?? '—')}</td></tr>`;
     })
     .join('')}</table></div>`;
-  return c.html(listPage('Modelos de IA', 'Precios, contexto y fechas de retiro (fuente: catálogo de OpenRouter).', '/models', items), 200, { 'cache-control': CACHE_SHORT });
+  return c.html(listPage('AI models', 'Prices, context windows and retirement dates (source: OpenRouter catalog).', '/models', items), 200, { 'cache-control': CACHE_SHORT });
 });
 
 app.get('/models/*', async (c) => {
   const e = await getEntity(pool, `model:${decodeURIComponent(c.req.path.slice('/models/'.length))}`);
-  if (!e) return c.html(listPage('Modelo no encontrado', 'No existe ese modelo en el catálogo.', c.req.path, ''), 404);
+  if (!e) return c.html(listPage('Model not found', 'That model is not in the catalog.', c.req.path, ''), 404);
   return c.html(modelHtml(await modelView(e)), 200, { 'cache-control': CACHE_SHORT });
 });
 
@@ -243,12 +268,12 @@ for (const eco of ['npm', 'pypi'] as const) {
     const md = raw.endsWith('.md'); // sólo por sufijo: así la caché del proxy no mezcla HTML y Markdown
     if (raw.endsWith('.md')) raw = raw.slice(0, -3);
     const name = canonicalName(eco, raw);
-    if (!name) return c.html(listPage('Nombre inválido', `No es un nombre válido de paquete ${eco}.`, c.req.path, ''), 400);
+    if (!name) return c.html(listPage('Invalid name', `Not a valid ${eco} package name.`, c.req.path, ''), 400);
     // Las páginas HTML no disparan resolución en vivo: los crawlers no deben poder crear entidades.
     const entity = await resolvePackage(eco, name, false);
     if (!entity) {
       return c.html(
-        listPage('Paquete no seguido todavía', `Vigía todavía no sigue ${eco}:${name}. Consultalo por la API y se agrega automáticamente.`, c.req.path, `<pre>GET ${esc(config.publicUrl)}/v1/packages/${eco}/${esc(name)}</pre>`),
+        listPage('Package not tracked yet', `Vigia does not track ${eco}:${name} yet. Query it through the API and it will be added automatically.`, c.req.path, `<pre>GET ${esc(config.publicUrl)}/v1/packages/${eco}/${esc(name)}</pre>`),
         404,
       );
     }

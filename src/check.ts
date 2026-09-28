@@ -127,9 +127,9 @@ export async function checkDependencies(eco: Ecosystem, deps: Dependency[]) {
     meta: {
       as_of: new Date().toISOString(),
       notes: [
-        'verdict compara el rango declarado contra la última versión estable publicada (dist-tag latest en npm).',
-        'outdated_major indica que actualizar a la última versión implica un salto de versión mayor (posibles breaking changes).',
-        'El contenido del manifest no se almacena.',
+        'verdict compares the declared range against the latest stable release (dist-tag latest on npm).',
+        'outdated_major means upgrading to the latest release crosses a major version (possible breaking changes).',
+        'The manifest content is not stored.',
       ],
     },
   };
