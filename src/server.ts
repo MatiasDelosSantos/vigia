@@ -351,7 +351,7 @@ app.get('/sitemaps/:file', async (c) => {
   const browsePaths = counts.rows.flatMap((x) =>
     Array.from({ length: Math.ceil(x.n / BROWSE_PAGE_SIZE) }, (_, i) => (i === 0 ? `/${x.ecosystem}` : `/${x.ecosystem}?page=${i + 1}`)),
   );
-  const urls = ['/', '/docs', '/models', '/changes', '/status', ...browsePaths]
+  const urls = ['/', '/check', '/docs', '/models', '/changes', '/status', ...browsePaths]
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
     .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {

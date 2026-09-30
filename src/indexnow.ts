@@ -5,9 +5,9 @@ import { localeUrl } from './api/pages.js';
 
 const ENDPOINT = 'https://api.indexnow.org/indexnow';
 // Cambiar la versión fuerza una notificación completa (p. ej. al agregar idiomas).
-const STATE_KEY = 'indexnow_last_submit_v3_staged';
+const STATE_KEY = 'indexnow_last_submit_v4_check';
 const BATCH = 10_000; // límite de IndexNow por request
-const STATIC_PATHS = ['/', '/docs', '/models', '/changes', '/status', '/npm', '/pypi'];
+const STATIC_PATHS = ['/', '/check', '/docs', '/models', '/changes', '/status', '/npm', '/pypi'];
 
 async function post(urls: string[]): Promise<void> {
   const base = config.publicUrl;

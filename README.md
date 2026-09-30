@@ -32,6 +32,30 @@ git archive --format=tar HEAD | ssh root@76.13.235.122 'tar xf - -C /opt/vigia &
 - Indexación por etapas: el sitemap en inglés lleva todos los paquetes; cada traducción, sólo el top `SITEMAP_LOCALIZED_TOP` (300) por ecosistema. Subirlo en el `.env` cuando Google indexe bien.
 - Google Search Console verificado (cuenta dlsantos.matias@gmail.com) con el archivo servido por Nginx; sitemap enviado.
 
+## Revisor web, badges y GitHub Action
+- **Revisor web**: `/check` (y `/{idioma}/check`): pegar un package.json o requirements.txt; nada se guarda.
+- **Badges**: `/badge/{npm|pypi}/{nombre}/{version|maintained|status}.svg`; cada página de paquete muestra el Markdown para copiar.
+- **GitHub Action** (`action.yml` + `action/check.mjs`, sin dependencias). Uso, cuando el repositorio sea público:
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write
+steps:
+  - uses: actions/checkout@v4
+  - uses: MatiasDelosSantos/vigia@v1
+    with:
+      fail-on: vulnerable        # opcional: vulnerable, deprecated, major, outdated
+      github-token: ${{ secrets.GITHUB_TOKEN }}   # opcional: comenta en el PR
+```
+
+## Medición de uso
+- Cada request se clasifica (personas, buscadores, crawlers de IA, agentes de IA, monitores, scripts); también se registran
+  métodos/herramientas/clientes MCP, rutas de la API, usos del revisor y de los badges. Agregado por día en `usage_daily`;
+  visitantes únicos con hash salado (`visitor_daily`), sin guardar IPs.
+- Panel privado: `https://vigia.coredls.cloud/admin/stats` (usuario `admin`). La contraseña está en el `.env` del VPS:
+  `ssh root@76.13.235.122 "grep ADMIN_PASSWORD /opt/vigia/.env"`.
+
 ## Idiomas
 Páginas HTML y documentación en 18 idiomas: en (raíz, canónico/x-default), es, pt, fr, de, it, nl, pl, ru, uk, tr, ar (RTL), hi, id, vi, ja, ko, zh (zh-Hans), bajo `/{código}/...`.
 Diccionarios en `src/i18n/*.ts` (TypeScript exige todas las claves; `test/i18n.test.ts` verifica los marcadores `{var}`).
