@@ -10,8 +10,11 @@ import { handleMcp } from './api/mcp.js';
 import { migrate } from './migrate.js';
 import { splitPackagePath } from './paths.js';
 import { openapi } from './api/openapi.js';
-import { BROWSE_PAGE_SIZE, FAVICON_SVG, browseHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
+import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
 import { recentVersions } from './versions.js';
+import { basicAuth } from 'hono/basic-auth';
+import { botName, classify, routeGroup, startAnalytics, stopAnalytics, track, trackVisitor, type ClientClass } from './analytics.js';
+import { BADGE_TYPES, badgeFor, badgeSvg, type BadgeType } from './api/badge.js';
 import { LOCALES, t, type Locale } from './i18n/index.js';
 
 const app = new Hono();
@@ -27,7 +30,38 @@ app.use('*', async (c, next) => {
   if (c.req.path.startsWith('/v1/') || c.req.path === '/openapi.json') c.header('access-control-allow-origin', '*');
   const ua = c.req.header('user-agent') ?? '-';
   console.log(`${c.req.method} ${c.req.path} ${c.res.status} ${Math.round(performance.now() - t0)}ms "${ua.slice(0, 120)}"`);
+  try {
+    measure(c, ua);
+  } catch {
+    // la medición nunca debe romper una respuesta
+  }
 });
+
+function measure(c: Context, ua: string): void {
+  const path = c.req.path;
+  if (path.startsWith('/admin') || path === '/health') return;
+  const cls = classify(ua);
+  const group = routeGroup(path);
+  c.set('clientClass' as never, cls as never);
+  track('client', cls);
+  track('route', `${cls} ${group}`);
+  if (cls !== 'human' && cls !== 'script' && cls !== 'unknown') track('bot', botName(ua));
+  if (group.startsWith('api:')) track('api', `${group} · ${cls}`);
+  const isPage = c.req.method === 'GET' && c.res.status === 200 && (group === 'home' || group.startsWith('page:'));
+  if (cls === 'human' && isPage) {
+    track('page', path.slice(0, 120));
+    trackVisitor(c.req.header('x-real-ip') ?? c.req.header('x-forwarded-for')?.split(',')[0]?.trim(), ua);
+    const ref = c.req.header('referer');
+    if (ref) {
+      try {
+        const host = new URL(ref).host;
+        if (host && !host.endsWith('vigia.coredls.cloud')) track('referrer', host);
+      } catch {
+        /* referer inválido */
+      }
+    }
+  }
+}
 
 // Archivo de verificación de IndexNow: /{clave}.txt
 app.use('*', async (c, next) => {
@@ -102,6 +136,7 @@ app.post('/v1/check', async (c) => {
   } catch {
     return c.json({ error: 'invalid_manifest', message: 'Could not parse the manifest.' }, 400);
   }
+  track('checker', `api ${eco}`);
   return c.json(await checkDependencies(eco, deps));
 });
 
@@ -167,6 +202,27 @@ app.all('/mcp', async (c) => {
     // Sin sesiones ni streaming del lado del servidor: indicamos cómo conectarse.
     return c.json({ name: 'vigia', transport: 'streamable-http (stateless)', usage: `claude mcp add --transport http vigia ${config.publicUrl}/mcp` }, 405, { allow: 'POST' });
   }
+  try {
+    const body = await c.req.raw.clone().json();
+    const msgs = Array.isArray(body) ? body : [body];
+    const cls = classify(c.req.header('user-agent'));
+    for (const m of msgs) {
+      if (!m || typeof m.method !== 'string') continue;
+      if (m.method === 'tools/call') {
+        const tool = String(m.params?.name ?? '?').slice(0, 60);
+        track('mcp', `tools/call:${tool}`);
+        track('mcp_caller', `${tool} · ${cls}`);
+      } else {
+        track('mcp', m.method.slice(0, 60));
+      }
+      if (m.method === 'initialize') {
+        const ci = m.params?.clientInfo;
+        track('mcp_client', `${String(ci?.name ?? 'unknown').slice(0, 60)} ${String(ci?.version ?? '').slice(0, 20)}`.trim());
+      }
+    }
+  } catch {
+    /* cuerpo no JSON: lo rechaza el transporte */
+  }
   return handleMcp(c.req.raw);
 });
 
@@ -200,13 +256,65 @@ app.get('/llms.txt', (c) => c.text(llmsTxt(), 200, { 'cache-control': CACHE_LONG
 
 app.get('/favicon.svg', (c) => c.body(FAVICON_SVG, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=604800' }));
 app.get('/favicon.ico', (c) => c.body(FAVICON_SVG, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=604800' }));
+// Badges SVG para READMEs: /badge/{npm|pypi}/{name}/{version|maintained|status}.svg
+app.get('/badge/*', async (c) => {
+  const rest = c.req.path.slice('/badge/'.length);
+  const m = /^(npm|pypi)\/(.+)\/(version|maintained|status)\.svg$/.exec(decodeURIComponent(rest));
+  if (!m) return c.text('Usage: /badge/{npm|pypi}/{name}/{version|maintained|status}.svg', 400);
+  const eco = m[1] as Ecosystem;
+  const type = m[3] as BadgeType;
+  const name = canonicalName(eco, m[2]!);
+  const svgHeaders = { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=3600, s-maxage=3600' };
+  if (!name) return c.body(badgeSvg(eco, 'invalid name', '#6b675f'), 200, svgHeaders);
+  const entity = await resolvePackage(eco, name, true).catch(() => null);
+  track('badge', `${type} ${eco}`);
+  const ref = c.req.header('referer');
+  const ua = c.req.header('user-agent') ?? '';
+  track('badge_ref', ua.includes('github-camo') ? 'github.com (camo)' : ref ? (() => { try { return new URL(ref).host; } catch { return 'invalid'; } })() : 'direct');
+  if (!entity) return c.body(badgeSvg(eco, 'not found', '#6b675f'), 200, svgHeaders);
+  const view = await packageView(entity);
+  const b = badgeFor(type, eco, view.data);
+  return c.body(badgeSvg(b.label, b.value, b.color), 200, svgHeaders);
+});
+
+// Panel privado de uso (usuario "admin", contraseña ADMIN_PASSWORD del .env; sin contraseña, no existe).
+if (process.env.ADMIN_PASSWORD) {
+  app.use('/admin/*', basicAuth({ username: 'admin', password: process.env.ADMIN_PASSWORD }));
+  app.get('/admin/stats', async (c) => {
+    const days = Math.min(Math.max(Number(c.req.query('days') ?? 14) || 14, 1), 90);
+    const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+    const clients = await pool.query<{ day: string; key: string; n: number }>(
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, key, n::int AS n FROM usage_daily WHERE dim = 'client' AND day >= $1 ORDER BY day DESC`,
+      [since],
+    );
+    const vis = await pool.query<{ day: string; n: number }>(
+      `SELECT to_char(day, 'YYYY-MM-DD') AS day, count(*)::int AS n FROM visitor_daily WHERE day >= $1 GROUP BY 1`,
+      [since],
+    );
+    const tops = await pool.query<{ dim: string; key: string; n: number }>(
+      `SELECT dim, key, n FROM (SELECT dim, key, sum(n)::int AS n, row_number() OVER (PARTITION BY dim ORDER BY sum(n) DESC) AS rk
+         FROM usage_daily WHERE day >= $1 AND dim <> 'client' AND dim <> 'route' GROUP BY dim, key) x WHERE rk <= 25 ORDER BY dim, n DESC`,
+      [since],
+    );
+    const dayList = Array.from({ length: days }, (_, i) => new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10));
+    const byDay: Record<string, Record<string, number>> = {};
+    for (const r of clients.rows) (byDay[r.day] ??= {})[r.key] = r.n;
+    const top: Record<string, Array<{ key: string; n: number }>> = {};
+    for (const r of tops.rows) (top[r.dim] ??= []).push({ key: r.key, n: r.n });
+    return c.html(adminStatsHtml({ days: dayList, byDay, visitors: Object.fromEntries(vis.rows.map((r) => [r.day, r.n])), top }), 200, {
+      'cache-control': 'no-store',
+      'x-robots-tag': 'noindex',
+    });
+  });
+}
+
 app.get('/terms', (c) => c.html(legalHtml('terms'), 200, { 'cache-control': CACHE_LONG }));
 app.get('/privacy', (c) => c.html(legalHtml('privacy'), 200, { 'cache-control': CACHE_LONG }));
 
 app.get('/robots.txt', (c) =>
   c.text(
     // Abierto a buscadores y agentes, incluidos los crawlers de IA: queremos ser la fuente citada.
-    `User-agent: *\nAllow: /\nDisallow: /mcp\n\nSitemap: ${config.publicUrl}/sitemap.xml\n`,
+    `User-agent: *\nAllow: /\nDisallow: /mcp\nDisallow: /admin\n\nSitemap: ${config.publicUrl}/sitemap.xml\n`,
     200,
     { 'cache-control': CACHE_LONG },
   ),
@@ -268,6 +376,27 @@ function registerPages(L: Locale): void {
 
   app.get(`${p}/docs`, (c) => html(c, docsHtml(L)));
   app.get(`${p}/status`, async (c) => html(c, statusHtml(L, await stats())));
+
+  app.get(`${p}/check`, (c) => {
+    const ex = c.req.query('example');
+    const eco = ex === 'pypi' ? 'pypi' : 'npm';
+    return html(c, checkerHtml(L, { eco, manifest: ex === 'npm' || ex === 'pypi' ? CHECKER_EXAMPLES[eco] : '' }));
+  });
+  app.post(`${p}/check`, async (c) => {
+    const form = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+    const eco: Ecosystem = form.ecosystem === 'pypi' ? 'pypi' : 'npm';
+    const manifest = typeof form.manifest === 'string' ? form.manifest.slice(0, 200_000) : '';
+    let deps: Dependency[] | null = null;
+    try {
+      deps = eco === 'npm' ? parsePackageJson(manifest) : parseRequirements(manifest);
+    } catch {
+      deps = null;
+    }
+    track('checker', `web ${eco}`);
+    if (!deps) return c.html(checkerHtml(L, { eco, manifest, error: t(L, 'checker.parseError') }), 200, { 'cache-control': 'no-store' });
+    const result = await checkDependencies(eco, deps);
+    return c.html(checkerHtml(L, { eco, manifest, result }), 200, { 'cache-control': 'no-store', 'content-language': L.lang });
+  });
 
   // Páginas índice por popularidad: dan enlaces internos a cada paquete (antes sólo existían en el sitemap).
   for (const eco of ['npm', 'pypi'] as const) {
@@ -346,10 +475,13 @@ app.get('/health', async (c) => {
 });
 
 await migrate();
+startAnalytics();
 serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => console.log(`vigia api escuchando en :${info.port}`));
 
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   process.once(sig, () => {
-    void pool.end().finally(() => process.exit(0));
+    void stopAnalytics()
+      .catch(() => {})
+      .finally(() => void pool.end().finally(() => process.exit(0)));
   });
 }

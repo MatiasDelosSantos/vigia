@@ -81,7 +81,7 @@ ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.p
 ${og}<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(opts.title)}"><meta name="twitter:description" content="${esc(opts.description)}">
 ${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : ''}
 <style>${CSS}</style></head><body><main>
-<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
+<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
 ${opts.body}
 <footer>${esc(t(L, 'footer.text'))} <a href="${L.prefix}/status">${esc(t(L, 'nav.status'))}</a> · <a href="/terms">${esc(t(L, 'footer.terms'))}</a> · <a href="/privacy">${esc(t(L, 'footer.privacy'))}</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
 <nav class="langs" aria-label="${esc(t(L, 'footer.languages'))}">${langLinks}</nav></footer>
@@ -221,6 +221,8 @@ ${
     : ''
 }
 
+${badgesSection(L, eco, d.entity.slice(eco.length + 1))}
+
 <h2>${esc(t(L, 'pkg.forAgents'))}</h2>
 <pre>GET ${esc(config.publicUrl)}/v1/packages${esc(path)}
 GET ${esc(config.publicUrl)}/v1/packages${esc(path)}/versions/{version}</pre>`;
@@ -315,6 +317,7 @@ export function homeHtml(L: Locale, stats: Record<string, number | null>, popula
   const body = `
 <h1>${esc(t(L, 'home.h1'))}</h1>
 <p>${esc(t(L, 'home.lead'))}</p>
+<p><a href="${L.prefix}/check"><strong>${esc(t(L, 'home.checkCta'))}</strong></a></p>
 <div class="card"><table>
 ${row(t(L, 'stat.npm'), esc(stats.npm_tracked ?? 0))}
 ${row(t(L, 'stat.pypi'), esc(stats.pypi_tracked ?? 0))}
@@ -524,7 +527,144 @@ export function legalHtml(kind: 'terms' | 'privacy'): string {
 <li><strong>Request logs.</strong> Like any web server, we record technical request data (time, path, status, response time, user agent and IP address) to operate, secure and measure the service. Logs are rotated automatically and kept only for a limited time.</li>
 <li><strong>Manifests you send to /v1/check</strong> are processed in memory and not stored. We only keep aggregate counts.</li>
 <li><strong>Package lookups</strong> may be counted (package name and time, without IP) to decide which packages to track.</li>
+<li><strong>Usage statistics.</strong> We count requests per day by type of client (browser, search engine, AI crawler, script) and which API endpoints and MCP tools are used. Unique daily visitors are counted with a salted, one-way hash of IP address and user agent that cannot be reversed; the IP itself is not stored in our database.</li>
 <li><strong>No sale of data.</strong> We do not sell or share personal data.</li>
 </ul>`;
   return layout(L, { title: kind === 'terms' ? 'Terms of use — Vigia' : 'Privacy — Vigia', description: kind === 'terms' ? 'Terms of use of Vigia.' : 'Privacy policy of Vigia.', path: `/${kind}`, body, singleLanguage: true });
+}
+
+// ------------------------------------------------------------------------------------------ revisor web
+
+export const CHECKER_EXAMPLES: Record<'npm' | 'pypi', string> = {
+  npm: JSON.stringify(
+    { dependencies: { express: '^4.17.1', lodash: '^4.17.4', react: '^17.0.2', request: '^2.88.0', next: '^16.0.0' }, devDependencies: { typescript: '^5.4.0' } },
+    null,
+    2,
+  ),
+  pypi: 'requests==2.25.0\nnumpy>=1.24,<2\ndjango<4\nflask\npyyaml==5.3.1\n',
+};
+
+const VERDICT_BADGE: Record<string, string> = { up_to_date: 'active', outdated: 'deprecated', outdated_major: 'yanked', unpinned: 'deprecated', unsupported_spec: 'retiring' };
+
+function checkerRow(L: Locale, eco: string, d: any): string {
+  const verdict = 'error' in d ? 'unresolved' : d.verdict;
+  const vulns: string[] = d.min_version_vulnerabilities ?? [];
+  const link = 'error' in d ? esc(d.name) : `<a href="${L.prefix}/${eco}/${esc(d.name)}" dir="ltr">${esc(d.name)}</a>`;
+  const dep = d.package_deprecated ? ` <span class="badge deprecated">${statusLabel(L, 'deprecated')}</span>` : '';
+  const vulnCell = vulns.length
+    ? `<code dir="ltr">${esc(d.min_version)}</code>: ${vulns
+        .slice(0, 4)
+        .map((id) => `<a href="https://osv.dev/vulnerability/${encodeURIComponent(id)}" rel="nofollow">${esc(id)}</a>`)
+        .join(' ')}${vulns.length > 4 ? ` +${vulns.length - 4}` : ''}`
+    : `<span class="muted">${esc(t(L, 'checker.none'))}</span>`;
+  return `<tr><td>${link}${dep}</td><td><code dir="ltr">${esc(d.spec || '*')}</code></td><td><code dir="ltr">${esc(d.latest ?? '—')}</code></td><td><span class="badge ${VERDICT_BADGE[verdict] ?? 'retiring'}">${esc(t(L, `verdict.${verdict}` as AnyKey))}</span></td><td>${vulnCell}</td></tr>`;
+}
+
+export function checkerHtml(L: Locale, state: { eco: 'npm' | 'pypi'; manifest: string; result?: any; error?: string }): string {
+  const r = state.result;
+  let results = '';
+  if (state.error) {
+    results = `<p class="badge yanked">${esc(state.error)}</p>`;
+  } else if (r && r.data.length === 0) {
+    results = `<p>${esc(t(L, 'checker.empty'))}</p>`;
+  } else if (r) {
+    const s = r.summary;
+    const summary = t(L, 'checker.summary', { total: s.total, major: s.outdated_major, outdated: s.outdated, deprecated: s.deprecated, vulnerable: s.min_version_vulnerable ?? 0 });
+    const head = ['checker.colDep', 'checker.colDeclared', 'checker.colLatest', 'checker.colVerdict', 'checker.colVulns'].map((k) => `<th>${esc(t(L, k as AnyKey))}</th>`).join('');
+    results = `<h2>${esc(t(L, 'checker.results'))}</h2><p>${esc(summary)}</p><div class="card"><table><tr>${head}</tr>${r.data.map((d: any) => checkerRow(L, state.eco, d)).join('')}</table></div>`;
+  }
+  const bc = crumbs(L, [[t(L, 'nav.check'), null]]);
+  const sel = (v: string) => (state.eco === v ? ' selected' : '');
+  const textareaStyle = 'width:100%;font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--code);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px';
+  const buttonStyle = 'font:inherit;font-weight:600;padding:8px 18px;border-radius:8px;border:0;background:var(--accent);color:var(--bg);cursor:pointer';
+  const body = `${bc.html}<h1>${esc(t(L, 'checker.title'))}</h1><p>${esc(t(L, 'checker.intro'))}</p>
+<form method="post" action="${L.prefix}/check" class="card">
+<p><label>${esc(t(L, 'checker.ecosystem'))}: <select name="ecosystem"><option value="npm"${sel('npm')}>npm — package.json</option><option value="pypi"${sel('pypi')}>PyPI — requirements.txt</option></select></label>
+ · <a href="${L.prefix}/check?example=npm">${esc(t(L, 'checker.example'))} (npm)</a> · <a href="${L.prefix}/check?example=pypi">${esc(t(L, 'checker.example'))} (PyPI)</a></p>
+<p><label for="manifest">${esc(t(L, 'checker.manifest'))}</label><br><textarea id="manifest" name="manifest" rows="12" dir="ltr" spellcheck="false" style="${textareaStyle}" required maxlength="200000">${esc(state.manifest)}</textarea></p>
+<p><button type="submit" style="${buttonStyle}">${esc(t(L, 'checker.submit'))}</button> <span class="muted">${esc(t(L, 'checker.privacy'))}</span></p>
+</form>
+${results}
+<p class="muted">${esc(t(L, 'checker.agentHint'))}</p>`;
+  return layout(L, {
+    title: `${t(L, 'checker.title')} — package.json, requirements.txt | Vigia`,
+    description: t(L, 'checker.metaDesc'),
+    path: '/check',
+    body,
+    ld: [
+      {
+        '@type': 'WebApplication',
+        name: t(L, 'checker.title'),
+        url: localeUrl(L, '/check'),
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Any',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        inLanguage: L.lang,
+      },
+      bc.ld,
+    ],
+  });
+}
+
+/** Sección de badges para la página de un paquete (el enlace apunta siempre a la página canónica en inglés). */
+export function badgesSection(L: Locale, eco: string, name: string): string {
+  const page = localeUrl(LOCALES[0]!, `/${eco}/${name}`);
+  const items = (['version', 'maintained', 'status'] as const).map((type) => {
+    const src = `${config.publicUrl}/badge/${eco}/${name}/${type}.svg`;
+    return { src, md: `[![${type}](${src})](${page})` };
+  });
+  const imgs = items.map((i) => `<img src="${esc(i.src.slice(config.publicUrl.length))}" alt="" height="20" loading="lazy">`).join(' ');
+  return `<h2>${esc(t(L, 'badge.title'))}</h2><p>${esc(t(L, 'badge.intro'))}</p>\n<p>${imgs}</p>\n<pre>${items.map((i) => esc(i.md)).join('\n')}</pre>`;
+}
+
+// ------------------------------------------------------------------------------------------ panel privado
+
+const CLASS_LABEL: Record<string, string> = {
+  human: 'Personas (requests)',
+  ai_user: 'Agentes de IA (fetch por usuario)',
+  ai_crawler: 'Crawlers de IA',
+  search_bot: 'Buscadores',
+  other_bot: 'Otros bots / monitores',
+  seo_bot: 'Bots SEO',
+  script: 'Scripts / clientes (node, python, curl)',
+  unknown: 'Desconocido',
+};
+
+const TOP_TITLES: Record<string, string> = {
+  mcp: 'MCP: métodos y herramientas llamadas',
+  mcp_client: 'MCP: clientes (clientInfo en initialize)',
+  mcp_caller: 'MCP: quién llama herramientas (tipo de cliente)',
+  api: 'API: rutas por tipo de cliente',
+  checker: 'Revisor web: usos',
+  badge: 'Badges servidos',
+  badge_ref: 'Badges: sitio que los muestra',
+  page: 'Páginas vistas por personas',
+  referrer: 'Personas: de dónde vienen',
+  bot: 'Bots más activos',
+};
+
+export function adminStatsHtml(data: {
+  days: string[];
+  byDay: Record<string, Record<string, number>>;
+  visitors: Record<string, number>;
+  top: Record<string, Array<{ key: string; n: number }>>;
+}): string {
+  const classes = Object.keys(CLASS_LABEL);
+  const head = `<tr><th>Día</th><th>Visitantes únicos</th>${classes.map((c) => `<th>${esc(CLASS_LABEL[c])}</th>`).join('')}</tr>`;
+  const rows = data.days
+    .map((d) => `<tr><td dir="ltr">${d}</td><td><strong>${data.visitors[d] ?? 0}</strong></td>${classes.map((c) => `<td>${data.byDay[d]?.[c] ?? 0}</td>`).join('')}</tr>`)
+    .join('');
+  const tops = Object.entries(TOP_TITLES)
+    .map(([dim, title]) => {
+      const list = data.top[dim] ?? [];
+      const table = list.length
+        ? `<div class="card"><table>${list.map((x) => `<tr><td dir="ltr">${esc(x.key)}</td><td>${x.n}</td></tr>`).join('')}</table></div>`
+        : '<p class="muted">Sin datos todavía.</p>';
+      return `<h2>${esc(title)}</h2>${table}`;
+    })
+    .join('');
+  const body = `<h1>Uso de Vigia (privado)</h1><p class="muted">Últimos ${data.days.length} días (UTC). Datos agregados, sin IPs. Se actualiza cada ~30 s.</p>
+<div class="card"><table>${head}${rows}</table></div>${tops}`;
+  const html = layout(LOCALES[0]!, { title: 'Estadísticas — Vigia', description: 'Panel privado', path: '/admin/stats', body, singleLanguage: true });
+  return html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
 }

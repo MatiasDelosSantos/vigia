@@ -1,0 +1,47 @@
+name: 'Vigia dependency check'
+description: 'Flags outdated, deprecated and vulnerable npm / PyPI dependencies using Vigia (verified, dated data with sources).'
+author: 'Vigia'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  manifests:
+    description: 'Comma-separated manifest paths. Default: every package.json and requirements*.txt in the repository root.'
+    required: false
+    default: ''
+  fail-on:
+    description: 'Comma-separated conditions that fail the job: vulnerable, deprecated, major, outdated. Empty = never fail.'
+    required: false
+    default: ''
+  github-token:
+    description: 'Token used to post/update a single comment on pull requests (e.g. secrets.GITHUB_TOKEN). Empty = no comment.'
+    required: false
+    default: ''
+  api-url:
+    description: 'Vigia base URL.'
+    required: false
+    default: 'https://vigia.coredls.cloud'
+
+outputs:
+  vulnerable:
+    description: 'Number of dependencies whose lowest allowed version has known vulnerabilities.'
+    value: ${{ steps.check.outputs.vulnerable }}
+  deprecated:
+    description: 'Number of deprecated dependencies.'
+    value: ${{ steps.check.outputs.deprecated }}
+  outdated-major:
+    description: 'Number of dependencies behind a major version.'
+    value: ${{ steps.check.outputs.outdated_major }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: check
+      shell: bash
+      run: node "${{ github.action_path }}/action/check.mjs"
+      env:
+        INPUT_MANIFESTS: ${{ inputs.manifests }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_API_URL: ${{ inputs.api-url }}

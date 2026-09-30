@@ -1,0 +1,35 @@
+// Tercer bloque de textos: revisor web de dependencias y badges.
+export const en3 = {
+  'nav.check': 'Check dependencies',
+  'home.checkCta': 'Check your package.json or requirements.txt now →',
+  'checker.title': 'Check your dependencies',
+  'checker.metaDesc': 'Free check for package.json and requirements.txt: outdated, deprecated and vulnerable dependencies, with sources. Nothing is stored.',
+  'checker.intro': 'Paste a package.json or requirements.txt. Vigia shows which dependencies are outdated, deprecated or allow versions with known vulnerabilities.',
+  'checker.privacy': 'The content you paste is processed in memory and not stored.',
+  'checker.ecosystem': 'Ecosystem',
+  'checker.manifest': 'Manifest content',
+  'checker.submit': 'Check',
+  'checker.example': 'Load an example',
+  'checker.results': 'Results',
+  'checker.colDep': 'Dependency',
+  'checker.colDeclared': 'Declared',
+  'checker.colLatest': 'Latest',
+  'checker.colVerdict': 'Verdict',
+  'checker.colVulns': 'Known vulnerabilities in the lowest allowed version',
+  'checker.summary': '{total} dependencies: {major} behind a major version, {outdated} outdated, {deprecated} deprecated, {vulnerable} allow vulnerable versions.',
+  'checker.parseError': 'The manifest could not be read. Check that it is a valid package.json or requirements.txt.',
+  'checker.empty': 'No dependencies found.',
+  'checker.none': 'none',
+  'checker.agentHint': 'AI agents can run the same check with POST /v1/check or the MCP tool check_dependencies.',
+  'verdict.up_to_date': 'up to date',
+  'verdict.outdated': 'outdated',
+  'verdict.outdated_major': 'major version behind',
+  'verdict.unpinned': 'no version pinned',
+  'verdict.unsupported_spec': 'range not supported',
+  'verdict.unresolved': 'not resolved',
+  'badge.title': 'Badges for your README',
+  'badge.intro': 'Show the latest version, maintenance status and deprecation status of this package. Copy the Markdown:',
+} as const;
+
+export type Message3Key = keyof typeof en3;
+export type Messages3 = Record<Message3Key, string>;
