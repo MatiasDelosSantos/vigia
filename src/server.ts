@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { serve } from '@hono/node-server';
 import { config } from './config.js';
 import { pool } from './db.js';
@@ -70,6 +71,8 @@ app.use('*', async (c, next) => {
 });
 
 app.onError((err, c) => {
+  // Errores HTTP intencionales (p. ej. 401 de la autenticación del panel) se devuelven tal cual.
+  if (err instanceof HTTPException) return err.getResponse();
   console.error(err);
   return c.json({ error: 'internal_error', message: 'Internal error; retry in a few seconds.' }, 500);
 });
