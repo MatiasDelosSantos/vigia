@@ -308,7 +308,7 @@ ${row(t(L, 'pkg.lastVerified'), fmtDate(view.meta.last_verified_at))}
 }
 
 export function listPage(L: Locale, title: string, intro: string, path: string, items: string): string {
-  return layout(L, { title, description: intro, path, body: `<h1>${esc(title)}</h1><p class="muted">${esc(intro)}</p>${items}` });
+  return layout(L, { title: `${title} — Vigia`, description: intro, path, body: `<h1>${esc(title)}</h1><p class="muted">${esc(intro)}</p>${items}` });
 }
 
 export function homeHtml(L: Locale, stats: Record<string, number | null>, popular: Record<'npm' | 'pypi', string[]>): string {
