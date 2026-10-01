@@ -48,6 +48,21 @@ export async function compatibleVersion(entity: EntityRow, constraints: Constrai
   const byVersion = new Map(rows.map((r) => [r.version, r]));
   const ordered = sortDesc(eco, rows.map((r) => r.version));
   const hasRequirementData = rows.some((r) => r.engines || r.peer || r.requires_python);
+  if (!hasRequirementData) {
+    // Sin requisitos cargados no podemos afirmar compatibilidad: adelantamos la sincronización y lo decimos.
+    await pool.query(`UPDATE entity SET next_check_at = now() WHERE id = $1 AND next_check_at > now()`, [entity.id]);
+    return {
+      data: {
+        entity: entity.key,
+        constraints: constraints.map((c) => `${c.name}@${c.version}`),
+        compatible_version: null,
+        status: 'requirements_not_synced_yet',
+        retry_after_s: 120,
+        latest_stable: sortDesc(eco, rows.map((r) => r.version))[0] ?? null,
+      },
+      meta: { as_of: new Date().toISOString(), requirement_data: 'not_synced_yet', note: 'Per-version requirements for this package are being loaded; retry in a couple of minutes.', license: DATA_LICENSE },
+    };
+  }
   let best: { version: string; checks: ReturnType<typeof checkVersion> } | null = null;
   let newestIncompatible: { version: string; failed: ReturnType<typeof checkVersion> } | null = null;
   for (const v of ordered) {
