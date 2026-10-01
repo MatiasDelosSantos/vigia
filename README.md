@@ -32,6 +32,22 @@ git archive --format=tar HEAD | ssh root@76.13.235.122 'tar xf - -C /opt/vigia &
 - Indexación por etapas: el sitemap en inglés lleva todos los paquetes; cada traducción, sólo el top `SITEMAP_LOCALIZED_TOP` (300) por ecosistema. Subirlo en el `.env` cuando Google indexe bien.
 - Google Search Console verificado (cuenta dlsantos.matias@gmail.com) con el archivo servido por Nginx; sitemap enviado.
 
+## Inteligencia de actualización (lo diferencial)
+- **Qué se rompe entre dos versiones** (`GET /v1/packages/npm/{name}/upgrade?from=14&to=15`, MCP `upgrade_impact`):
+  exports y rutas de importación eliminados, firmas y miembros de clases/interfaces cambiados, nuevas deprecaciones
+  (`@deprecated` en los tipos), cambios de `engines`/`peerDependencies` y secciones del CHANGELOG entre versiones.
+- **¿Existe esta API en esta versión?** (`GET /v1/packages/npm/{name}/symbols/{símbolo}?version=`, MCP `symbol_status`):
+  firma exacta, desde dónde importarla, si está deprecada; sugiere nombres parecidos si no existe.
+- **Versión compatible más nueva** (`GET /v1/packages/{eco}/{name}/compatible?with=node@18,react@18|python@3.8`,
+  MCP `find_compatible_version`), usando los requisitos declarados por **cada** versión (`package_version.engines/peer/requires_python`).
+- **Cómo funciona**: el worker descarga el tarball (nunca ejecuta nada), extrae sólo `.d.ts`, `package.json` y changelog
+  (`src/tarball.ts`), y analiza los exports con la API de TypeScript 5.9 (`ts-api`, alias de npm; TS 7 no expone API)
+  en un hilo aislado con límite de 640 MB y 120 s (`src/apisurface.ts`, `src/surface-worker.ts`). Si el paquete no trae
+  tipos, usa `@types/<nombre>` de la misma versión mayor. Las "fotos" quedan en `api_snapshot`; la cola es `analysis_job`
+  (prioridad 10 para pedidos de usuarios, 200 para pregeneración del top 300 cada 6 h).
+- **Guías públicas**: `/upgrade/npm/{name}/{a}-to-{b}` en 18 idiomas, índice en `/upgrade`, en sitemaps.
+- Prueba manual del analizador: `npx tsx scripts/try-surface.ts next 15.0.0 cookies`.
+
 ## Revisor web, badges y GitHub Action
 - **Revisor web**: `/check` (y `/{idioma}/check`): pegar un package.json o requirements.txt; nada se guarda.
 - **Badges**: `/badge/{npm|pypi}/{nombre}/{version|maintained|status}.svg`; cada página de paquete muestra el Markdown para copiar.
