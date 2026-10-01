@@ -3,8 +3,9 @@ import { LOCALES, t } from '../src/i18n/index.js';
 import { en } from '../src/i18n/en.js';
 import { en2 } from '../src/i18n/extra/en.js';
 import { en3 } from '../src/i18n/tools/en.js';
+import { en4 } from '../src/i18n/upgrade/en.js';
 
-const base: Record<string, string> = { ...en, ...en2, ...en3 };
+const base: Record<string, string> = { ...en, ...en2, ...en3, ...en4 };
 
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 

@@ -9,6 +9,7 @@ export interface IngestResult {
 }
 
 const REGISTRY = 'https://registry.npmjs.org';
+const REQUIREMENTS_V = 1;
 const DIST_TAGS_MAX_AGE_MS = 6 * 3600_000;
 const DEPSDEV_MAX_AGE_MS = 24 * 3600_000;
 
@@ -38,14 +39,42 @@ async function fetchNpmVersions(name: string): Promise<VersionRow[] | null> {
     const r = await httpGet(`https://api.deps.dev/v3/systems/npm/packages/${encodeURIComponent(name)}`, { timeoutMs: 30_000 });
     if (r.status !== 200) return null;
     const versions: any[] = JSON.parse(r.body).versions ?? [];
+    // Requisitos por versión (engines, peerDependencies, deprecated) desde el documento abreviado del registry.
+    const req = await fetchRequirements(name);
     return versions
       .filter((v) => typeof v.versionKey?.version === 'string')
-      .map((v) => ({
-        version: v.versionKey.version,
-        published_at: v.publishedAt ?? null,
-        prerelease: isPrerelease('npm', v.versionKey.version),
-        withdrawn: Boolean(v.isDeprecated),
-      }));
+      .map((v) => {
+        const version: string = v.versionKey.version;
+        const rq = req?.[version];
+        return {
+          version,
+          published_at: v.publishedAt ?? null,
+          prerelease: isPrerelease('npm', version),
+          withdrawn: Boolean(v.isDeprecated),
+          ...(rq ? { engines: rq.engines, peer: rq.peer, deprecated_msg: rq.deprecated } : {}),
+        };
+      });
+  } catch {
+    return null;
+  }
+}
+
+/** engines / peerDependencies / mensaje de deprecación de cada versión (documento abreviado, puede pesar varios MB). */
+async function fetchRequirements(name: string): Promise<Record<string, { engines: Record<string, string> | null; peer: Record<string, string> | null; deprecated: string | null }> | null> {
+  try {
+    const r = await httpGet(`${REGISTRY}/${encodeNpm(name)}`, { accept: 'application/vnd.npm.install-v1+json', timeoutMs: 60_000 });
+    if (r.status !== 200) return null;
+    const doc = JSON.parse(r.body);
+    const out: Record<string, { engines: Record<string, string> | null; peer: Record<string, string> | null; deprecated: string | null }> = {};
+    const obj = (x: unknown) => (x && typeof x === 'object' && !Array.isArray(x) && Object.keys(x).length ? (x as Record<string, string>) : null);
+    for (const [ver, m] of Object.entries<any>(doc.versions ?? {})) {
+      out[ver] = {
+        engines: obj(m.engines),
+        peer: obj(m.peerDependencies),
+        deprecated: typeof m.deprecated === 'string' && m.deprecated ? m.deprecated.slice(0, 500) : null,
+      };
+    }
+    return out;
   } catch {
     return null;
   }
@@ -83,7 +112,8 @@ export async function ingestNpm(db: Queryable, entity: EntityRow): Promise<Inges
   const needDistTags = res.status === 200 || !distTagsFact || now - distTagsFact.last_verified_at.getTime() > DIST_TAGS_MAX_AGE_MS;
 
   const latestKnown = current.get('latest_version')?.value?.version;
-  const versionsSynced = latestKnown !== undefined && entity.attrs?.versions_synced_for === latestKnown;
+  // REQUIREMENTS_V: subir este número fuerza una resincronización de requisitos por versión en todos los paquetes.
+  const versionsSynced = latestKnown !== undefined && entity.attrs?.versions_synced_for === latestKnown && entity.attrs?.requirements_v === REQUIREMENTS_V;
   if (res.status === 304 && !needDistTags && versionsSynced) {
     const advisories = current.get('advisories');
     if (advisories && now - advisories.last_verified_at.getTime() <= DEPSDEV_MAX_AGE_MS) {
@@ -103,7 +133,7 @@ export async function ingestNpm(db: Queryable, entity: EntityRow): Promise<Inges
   const depsdev = needDepsDev ? await fetchDepsDev(entity.name, version) : null;
 
   // Historial de versiones (deps.dev): sólo cuando cambia la última versión o todavía no lo tenemos.
-  const versionRows = entity.attrs?.versions_synced_for !== version ? await fetchNpmVersions(entity.name) : null;
+  const versionRows = entity.attrs?.versions_synced_for !== version || entity.attrs?.requirements_v !== REQUIREMENTS_V ? await fetchNpmVersions(entity.name) : null;
 
   let distTags: Record<string, string> | null = null;
   let distTagsEtag = etags.distTags ?? null;
@@ -162,7 +192,7 @@ export async function ingestNpm(db: Queryable, entity: EntityRow): Promise<Inges
     if (versionRows) await upsertVersions(c, entity.id, versionRows);
     const attrs = {
       ...entity.attrs,
-      ...(versionRows ? { versions_synced_for: version } : {}),
+      ...(versionRows ? { versions_synced_for: version, requirements_v: REQUIREMENTS_V } : {}),
       etags: { latest: res.etag ?? etags.latest ?? null, distTags: distTagsEtag },
       ...(manifest
         ? {

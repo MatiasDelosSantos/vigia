@@ -126,3 +126,15 @@ describe('minVersionOf', () => {
     expect(minVersionOf('pypi', '')).toBeNull();
   });
 });
+
+describe('splitPackagePath: sufijos de inteligencia de actualización', () => {
+  it('upgrade, compatible y símbolos', () => {
+    expect(splitPackagePath('npm/next/upgrade')).toEqual({ eco: 'npm', name: 'next', suffix: 'upgrade' });
+    expect(splitPackagePath('npm/@types/node/compatible')).toEqual({ eco: 'npm', name: '@types/node', suffix: 'compatible' });
+    expect(splitPackagePath('npm/next/symbols/cookies')).toEqual({ eco: 'npm', name: 'next', suffix: 'symbol', symbol: 'cookies' });
+    expect(splitPackagePath('npm/zod/symbols/ZodError.flatten')).toEqual({ eco: 'npm', name: 'zod', suffix: 'symbol', symbol: 'ZodError.flatten' });
+  });
+  it('un paquete llamado "upgrade" no se confunde', () => {
+    expect(splitPackagePath('npm/upgrade')).toEqual({ eco: 'npm', name: 'upgrade', suffix: '' });
+  });
+});

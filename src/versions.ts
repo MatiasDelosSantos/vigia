@@ -8,6 +8,11 @@ export interface VersionRow {
   published_at: string | null;
   prerelease: boolean;
   withdrawn: boolean;
+  // Requisitos declarados por esa versión (undefined = no los conocemos; no pisa lo ya guardado).
+  engines?: Record<string, string> | null;
+  peer?: Record<string, string> | null;
+  requires_python?: string | null;
+  deprecated_msg?: string | null;
 }
 
 export function isPrerelease(eco: Ecosystem, v: string): boolean {
@@ -33,12 +38,28 @@ export async function upsertVersions(db: Queryable, entityId: number, rows: Vers
   const CHUNK = 2000;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const part = rows.slice(i, i + CHUNK);
+    // Las versiones publicadas son inmutables: si una fila no trae requisitos, se conservan los ya guardados.
     await db.query(
-      `INSERT INTO package_version (entity_id, version, published_at, prerelease, withdrawn)
-       SELECT $1, v, p, pr, w FROM unnest($2::text[], $3::timestamptz[], $4::bool[], $5::bool[]) AS t(v, p, pr, w)
+      `INSERT INTO package_version (entity_id, version, published_at, prerelease, withdrawn, engines, peer, requires_python, deprecated_msg)
+       SELECT $1, v, p, pr, w, e::jsonb, pe::jsonb, rp, dm
+       FROM unnest($2::text[], $3::timestamptz[], $4::bool[], $5::bool[], $6::text[], $7::text[], $8::text[], $9::text[]) AS t(v, p, pr, w, e, pe, rp, dm)
        ON CONFLICT (entity_id, version) DO UPDATE SET published_at = COALESCE(EXCLUDED.published_at, package_version.published_at),
-         prerelease = EXCLUDED.prerelease, withdrawn = EXCLUDED.withdrawn`,
-      [entityId, part.map((r) => r.version), part.map((r) => r.published_at), part.map((r) => r.prerelease), part.map((r) => r.withdrawn)],
+         prerelease = EXCLUDED.prerelease, withdrawn = EXCLUDED.withdrawn,
+         engines = COALESCE(EXCLUDED.engines, package_version.engines),
+         peer = COALESCE(EXCLUDED.peer, package_version.peer),
+         requires_python = COALESCE(EXCLUDED.requires_python, package_version.requires_python),
+         deprecated_msg = COALESCE(EXCLUDED.deprecated_msg, package_version.deprecated_msg)`,
+      [
+        entityId,
+        part.map((r) => r.version),
+        part.map((r) => r.published_at),
+        part.map((r) => r.prerelease),
+        part.map((r) => r.withdrawn),
+        part.map((r) => (r.engines ? JSON.stringify(r.engines) : null)),
+        part.map((r) => (r.peer ? JSON.stringify(r.peer) : null)),
+        part.map((r) => r.requires_python ?? null),
+        part.map((r) => r.deprecated_msg ?? null),
+      ],
     );
   }
 }

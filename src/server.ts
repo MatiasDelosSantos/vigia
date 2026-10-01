@@ -10,7 +10,10 @@ import { canonicalName, isEcosystem, type Ecosystem } from './util.js';
 import { handleMcp } from './api/mcp.js';
 import { migrate } from './migrate.js';
 import { splitPackagePath } from './paths.js';
+import { availableGuides, compatibilityTable, compatibleVersion, guidesFor, symbolStatus, upgradeReport } from './intel.js';
+import { parseConstraints } from './upgrade.js';
 import { openapi } from './api/openapi.js';
+import { upgradeHtml, upgradesIndexHtml } from './api/pages.js';
 import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
 import { recentVersions } from './versions.js';
 import { basicAuth } from 'hono/basic-auth';
@@ -97,7 +100,7 @@ async function notFound(c: Context, eco: Ecosystem, name: string) {
 // ----------------------------------------------------------------------------------------- API REST
 
 app.get('/v1/packages/*', async (c) => {
-  const { eco, name: raw, suffix, version } = splitPackagePath(c.req.path.slice('/v1/packages/'.length));
+  const { eco, name: raw, suffix, version, symbol } = splitPackagePath(c.req.path.slice('/v1/packages/'.length));
   if (!isEcosystem(eco)) return c.json({ error: 'invalid_ecosystem', message: 'Supported ecosystems: npm, pypi' }, 400);
   const name = canonicalName(eco, raw);
   if (!name) return c.json({ error: 'invalid_name', message: `Invalid package name for ${eco}.` }, 400);
@@ -119,6 +122,36 @@ app.get('/v1/packages/*', async (c) => {
     if (!version || version.length > 100 || !/^[0-9A-Za-z.+_!-]+$/.test(version)) return c.json({ error: 'invalid_version' }, 400);
     c.header('cache-control', CACHE_SHORT);
     return c.json(await versionStatus(entity, version));
+  }
+  if (suffix === 'compatible') {
+    const constraints = parseConstraints(c.req.query('with') ?? '');
+    if (constraints.length === 0) return c.json({ error: 'invalid_constraints', message: 'Use ?with=node@18,react@18 (npm) or ?with=python@3.8 (pypi).' }, 400);
+    c.header('cache-control', CACHE_SHORT);
+    return c.json(await compatibleVersion(entity, constraints));
+  }
+  if (suffix === 'upgrade') {
+    const r = await upgradeReport(entity, c.req.query('from'), c.req.query('to'));
+    if (r.status === 'pending') {
+      c.header('retry-after', String(r.retry_after_s));
+      return c.json({ status: 'pending', message: 'Analysis queued; retry after retry_after_s seconds.', ...r.data, retry_after_s: r.retry_after_s }, 202);
+    }
+    if (r.status !== 'ok') return c.json({ error: r.status, message: r.message }, r.status === 'unsupported' ? 422 : 400);
+    c.header('cache-control', CACHE_SHORT);
+    return c.json({ data: r.data, meta: r.meta });
+  }
+  if (suffix === 'symbol') {
+    if (!symbol || symbol.length > 200 || !/^[A-Za-z_$][\w$]*(\.[A-Za-z_$#][\w$]*)?$/.test(symbol)) return c.json({ error: 'invalid_symbol', message: 'Use an exported name, optionally Class.member.' }, 400);
+    const r = await symbolStatus(entity, symbol, c.req.query('version'), c.req.query('module'));
+    if (r.status === 'pending') {
+      c.header('retry-after', String(r.retry_after_s));
+      return c.json({ status: 'pending', message: 'Analysis queued; retry after retry_after_s seconds.', ...r.data, retry_after_s: r.retry_after_s }, 202);
+    }
+    if (r.status === 'ok') {
+      c.header('cache-control', CACHE_SHORT);
+      return c.json({ data: r.data, meta: r.meta });
+    }
+    if (r.status === 'no_types') return c.json({ error: 'no_types', message: 'No TypeScript types could be analyzed for this version.', ...r.data }, 404);
+    return c.json({ error: r.status, message: r.message }, r.status === 'unsupported' ? 422 : 400);
   }
   const view = await packageView(entity, asOf);
   if (view.data.status === 'not_found_in_registry' && !asOf) return notFound(c, eco, name);
@@ -351,7 +384,9 @@ app.get('/sitemaps/:file', async (c) => {
   const browsePaths = counts.rows.flatMap((x) =>
     Array.from({ length: Math.ceil(x.n / BROWSE_PAGE_SIZE) }, (_, i) => (i === 0 ? `/${x.ecosystem}` : `/${x.ecosystem}?page=${i + 1}`)),
   );
-  const urls = ['/', '/check', '/docs', '/models', '/changes', '/status', ...browsePaths]
+  const guides = await availableGuides(5000);
+  const guidePaths = guides.filter((g) => L.code === 'en' || guides.indexOf(g) < 300).map((g) => `/upgrade/npm/${g.name}/${g.from}-to-${g.to}`);
+  const urls = ['/', '/check', '/upgrade', '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths]
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
     .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {
@@ -379,6 +414,25 @@ function registerPages(L: Locale): void {
 
   app.get(`${p}/docs`, (c) => html(c, docsHtml(L)));
   app.get(`${p}/status`, async (c) => html(c, statusHtml(L, await stats())));
+
+  app.get(`${p}/upgrade`, async (c) => html(c, upgradesIndexHtml(L, await availableGuides(1000))));
+  app.get(`${p}/upgrade/npm/*`, async (c) => {
+    const rest = decodeURIComponent(c.req.path.slice(`${p}/upgrade/npm/`.length));
+    const m = /^(.+)\/(\d{1,4})-to-(\d{1,4})$/.exec(rest);
+    const name = m ? canonicalName('npm', m[1]!) : null;
+    if (!m || !name) return html(c, listPage(L, t(L, 'err.invalidName'), t(L, 'err.invalidNameText', { eco: 'npm' }), c.req.path, ''), 400);
+    const a = Number(m[2]);
+    const b = Number(m[3]);
+    if (b <= a) return c.redirect(`${p}/upgrade/npm/${name}/${b}-to-${a}`, 301);
+    const entity = await resolvePackage('npm', name, false);
+    if (!entity) return html(c, listPage(L, t(L, 'err.notTracked'), t(L, 'err.notTrackedText', { pkg: `npm:${name}` }), c.req.path, ''), 404);
+    // Preferimos las versiones ya analizadas de cada mayor (página estable para buscadores); si no hay, la última de la mayor.
+    const ready = (await guidesFor(entity.id)).find((g) => g.from === a && g.to === b);
+    const r = await upgradeReport(entity, ready?.fromVersion ?? String(a), ready?.toVersion ?? String(b));
+    if (r.status === 'ok') return html(c, upgradeHtml(L, name, a, b, { status: 'ok', data: r.data, meta: r.meta }));
+    if (r.status === 'pending') return html(c, upgradeHtml(L, name, a, b, { status: 'pending' }));
+    return html(c, upgradeHtml(L, name, a, b, { status: 'error', message: r.message }), 404);
+  });
 
   app.get(`${p}/check`, (c) => {
     const ex = c.req.query('example');
@@ -463,8 +517,13 @@ function registerPages(L: Locale): void {
       if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
       const history = (await packageHistory(entity, 30)).data.changes;
       const peers = Object.keys((view.data as any).requires?.peer_dependencies ?? {});
-      const [versions, related] = await Promise.all([recentVersions(pool, entity.id, 20, true), relatedPackages(entity, peers)]);
-      return html(c, packageHtml(L, view, history, { versions, related }), view.data.status === 'not_found_in_registry' ? 404 : 200);
+      const [versions, related, compat, guides] = await Promise.all([
+        recentVersions(pool, entity.id, 20, true),
+        relatedPackages(entity, peers),
+        compatibilityTable(entity),
+        eco === 'npm' ? guidesFor(entity.id) : Promise.resolve([]),
+      ]);
+      return html(c, packageHtml(L, view, history, { versions, related, compat, guides }), view.data.status === 'not_found_in_registry' ? 404 : 200);
     });
   }
 }

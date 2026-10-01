@@ -17,7 +17,7 @@ function repoFrom(projectUrls: Record<string, string> | null | undefined): strin
 export async function ingestPypi(db: Queryable, entity: EntityRow): Promise<IngestResult> {
   const url = `https://pypi.org/pypi/${encodeURIComponent(entity.name)}/json`;
   // Sin historial de versiones todavía: descarga completa (ignoramos el ETag una vez).
-  const etag = entity.attrs?.versions_synced ? entity.attrs?.etags?.json : null;
+  const etag = entity.attrs?.versions_synced && entity.attrs?.requirements_v === 1 ? entity.attrs?.etags?.json : null;
   const res = await httpGet(url, { etag, timeoutMs: 30_000 });
 
   if (res.status === 404) {
@@ -49,6 +49,7 @@ export async function ingestPypi(db: Queryable, entity: EntityRow): Promise<Inge
     prerelease: isPrerelease('pypi', v),
     // Una versión cuenta como retirada si todos sus archivos fueron yanked.
     withdrawn: files.length > 0 && files.every((f) => f.yanked === true),
+    requires_python: files.find((f) => typeof f.requires_python === 'string' && f.requires_python)?.requires_python ?? null,
   }));
 
   const changed = await tx(async (c) => {
@@ -70,6 +71,7 @@ export async function ingestPypi(db: Queryable, entity: EntityRow): Promise<Inge
       ...entity.attrs,
       etags: { json: res.etag },
       versions_synced: true,
+      requirements_v: 1,
       display_name: info.name ?? entity.name,
       description: typeof info.summary === 'string' ? info.summary.slice(0, 500) : null,
       repository: repoFrom(info.project_urls),

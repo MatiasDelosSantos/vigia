@@ -81,7 +81,7 @@ ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.p
 ${og}<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(opts.title)}"><meta name="twitter:description" content="${esc(opts.description)}">
 ${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : ''}
 <style>${CSS}</style></head><body><main>
-<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
+<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/upgrade">${esc(t(L, 'nav.upgrades'))}</a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
 ${opts.body}
 <footer>${esc(t(L, 'footer.text'))} <a href="${L.prefix}/status">${esc(t(L, 'nav.status'))}</a> · <a href="/terms">${esc(t(L, 'footer.terms'))}</a> · <a href="/privacy">${esc(t(L, 'footer.privacy'))}</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
 <nav class="langs" aria-label="${esc(t(L, 'footer.languages'))}">${langLinks}</nav></footer>
@@ -96,6 +96,8 @@ const pkgPath = (d: any) => `/${d.ecosystem}/${d.entity.slice(d.ecosystem.length
 export interface PackageExtras {
   versions: Array<{ version: string; published_at: Date | null; prerelease: boolean; withdrawn: boolean }>;
   related: Array<{ ecosystem: string; name: string }>;
+  compat?: Array<{ target: string; version: string | null }>;
+  guides?: Array<{ from: number; to: number }>;
 }
 
 const daysSince = (iso: string | null | undefined) => (iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000) : null);
@@ -202,6 +204,8 @@ ${
 <p class="muted">${esc(t(L, 'versions.showing', { n: extras.versions.length, total: mt.stable_versions ?? extras.versions.length }))} <a href="/v1/packages${esc(path)}/versions?stable=true" rel="nofollow">JSON</a></p>`
     : ''
 }
+
+${packageIntelSections(L, eco, d.entity.slice(eco.length + 1), extras.compat ?? [], extras.guides ?? [])}
 
 <h2>${esc(t(L, 'faq.title'))}</h2>
 ${faq.map(([q, a]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}
@@ -667,4 +671,135 @@ export function adminStatsHtml(data: {
 <div class="card"><table>${head}${rows}</table></div>${tops}`;
   const html = layout(LOCALES[0]!, { title: 'Estadísticas — Vigia', description: 'Panel privado', path: '/admin/stats', body, singleLanguage: true });
   return html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
+}
+
+// ------------------------------------------------------------------------------------------ guías de actualización
+
+const codeCell = (s: string) => `<code dir="ltr">${esc(s)}</code>`;
+
+function listTable(L: Locale, rows: string[][], head: string[]): string {
+  if (rows.length === 0) return `<p class="muted">${esc(t(L, 'up.none'))}</p>`;
+  return `<div class="card"><table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+}
+
+export function upgradeHtml(
+  L: Locale,
+  name: string,
+  a: number,
+  b: number,
+  state: { status: 'ok'; data: any; meta: any } | { status: 'pending' } | { status: 'error'; message: string },
+): string {
+  const path = `/upgrade/npm/${name}/${a}-to-${b}`;
+  const bc = crumbs(L, [[t(L, 'up.indexTitle'), '/upgrade'], [name, `/npm/${name}`], [`${a} → ${b}`, null]]);
+  const h1 = `<h1>${esc(t(L, 'up.h1', { name, a, b }))}</h1>`;
+  if (state.status !== 'ok') {
+    const msg = state.status === 'pending' ? t(L, 'up.pending') : state.message;
+    return layout(L, {
+      title: t(L, 'up.title', { name, a, b }),
+      description: t(L, 'up.metaDesc', { name, from: `${a}.x`, to: `${b}.x` }),
+      path,
+      body: `${bc.html}${h1}<p class="badge deprecated">${esc(msg)}</p>`,
+    }).replace('<head>', '<head><meta name="robots" content="noindex">');
+  }
+  const d = state.data;
+  const s = d.summary;
+  const bc2 = d.breaking_candidates;
+  const summaryRows = s
+    ? [
+        [t(L, 'up.removedModules'), s.removed_modules],
+        [t(L, 'up.removedExports'), s.removed_exports],
+        [t(L, 'up.changedSigs'), s.changed_signatures],
+        [t(L, 'up.removedMembers'), s.removed_members],
+        [t(L, 'up.changedMembers'), s.changed_members],
+        [t(L, 'up.deprecated'), s.newly_deprecated],
+        [t(L, 'up.reqChanges'), s.requirement_changes],
+        [t(L, 'up.added'), s.added_exports],
+      ]
+    : [[t(L, 'up.reqChanges'), d.requirement_changes.length]];
+  const summary = `<div class="card"><table>${summaryRows.map(([k, v]) => row(String(k), `<strong>${esc(v)}</strong>`)).join('')}</table></div>`;
+  const sections: string[] = [];
+  if (!s) sections.push(`<p class="muted">${esc(t(L, 'up.noTypes'))}</p>`);
+  if (bc2) {
+    if (bc2.removed_modules.length) sections.push(`<h2>${esc(t(L, 'up.removedModules'))}</h2>${listTable(L, bc2.removed_modules.map((m: string) => [codeCell(m)]), [t(L, 'up.removedModules')])}`);
+    sections.push(`<h2>${esc(t(L, 'up.removedExports'))}</h2>${listTable(L, bc2.removed_exports.map((x: any) => [codeCell(x.module), codeCell(x.name), esc(x.kind), codeCell(x.sig)]), ['import', 'export', 'kind', t(L, 'up.before')])}`);
+    sections.push(`<h2>${esc(t(L, 'up.changedSigs'))}</h2>${listTable(L, bc2.changed_signatures.map((x: any) => [codeCell(`${x.module} · ${x.name}`), codeCell(x.before), codeCell(x.after)]), ['export', t(L, 'up.before'), t(L, 'up.after')])}`);
+    sections.push(`<h2>${esc(t(L, 'up.removedMembers'))}</h2>${listTable(L, bc2.removed_members.map((x: any) => [codeCell(`${x.owner}.${x.member}`), codeCell(x.module), codeCell(x.before)]), ['member', 'import', t(L, 'up.before')])}`);
+    sections.push(`<h2>${esc(t(L, 'up.changedMembers'))}</h2>${listTable(L, bc2.changed_members.map((x: any) => [codeCell(`${x.owner}.${x.member}`), codeCell(x.before), codeCell(x.after)]), ['member', t(L, 'up.before'), t(L, 'up.after')])}`);
+    sections.push(`<h2>${esc(t(L, 'up.deprecated'))}</h2>${listTable(L, d.newly_deprecated.map((x: any) => [codeCell(`${x.module} · ${x.name}`), `<span dir="auto" lang="und">${esc(x.message || '—')}</span>`]), ['export', '@deprecated'])}`);
+  }
+  sections.push(`<h2>${esc(t(L, 'up.reqChanges'))}</h2>${listTable(L, d.requirement_changes.map((x: any) => [codeCell(x.field), codeCell(x.before ?? '—'), codeCell(x.after ?? '—')]), ['', t(L, 'up.before'), t(L, 'up.after')])}`);
+  if (s && d.added_exports.length) {
+    sections.push(
+      `<details><summary><strong>${esc(t(L, 'up.added'))} (${d.added_exports.length})</strong></summary>${listTable(L, d.added_exports.slice(0, 200).map((x: any) => [codeCell(x.module), codeCell(x.name), esc(x.kind)]), ['import', 'export', 'kind'])}</details>`,
+    );
+  }
+  if (d.changelog.length) {
+    sections.push(
+      `<h2>${esc(t(L, 'up.changelog'))}</h2><p class="muted">${esc(t(L, 'up.changelogNote'))}</p>${d.changelog
+        .map((c: any) => `<details class="faq"><summary><code dir="ltr">${esc(c.version)}</code></summary><pre style="white-space:pre-wrap" dir="auto" lang="und">${esc(c.text)}</pre></details>`)
+        .join('')}`,
+    );
+  }
+
+  const members = s ? s.removed_members + s.changed_members : 0;
+  const faq: Array<[string, string]> = [
+    [t(L, 'up.faqBreakingQ', { name, a, b }), s ? t(L, 'up.faqBreakingA', { name, from: d.from, to: d.to, removed: s.removed_exports, changed: s.changed_signatures, members }) : t(L, 'up.noTypes')],
+  ];
+  if (s) faq.push([t(L, 'up.faqDeprecatedQ', { name, b }), t(L, 'up.faqDeprecatedA', { name, to: d.to, count: s.newly_deprecated })]);
+
+  const body = `${bc.html}${h1}
+<p>${esc(t(L, 'up.intro', { name, from: d.from, to: d.to }))}</p>
+<h2>${esc(t(L, 'up.summary'))}</h2>${summary}
+${sections.join('\n')}
+<h2>${esc(t(L, 'faq.title'))}</h2>
+${faq.map(([q, ans]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join('')}
+<h2>${esc(t(L, 'pkg.forAgents'))}</h2>
+<pre>GET ${esc(config.publicUrl)}/v1/packages/npm/${esc(name)}/upgrade?from=${esc(d.from)}&amp;to=${esc(d.to)}</pre>`;
+
+  return layout(L, {
+    title: t(L, 'up.title', { name, a, b }),
+    description: t(L, 'up.metaDesc', { name, from: d.from, to: d.to }),
+    path,
+    body,
+    ld: [
+      { '@type': 'TechArticle', headline: t(L, 'up.title', { name, a, b }), about: name, inLanguage: L.lang, url: localeUrl(L, path), dateModified: state.meta?.as_of },
+      bc.ld,
+      { '@type': 'FAQPage', mainEntity: faq.map(([q, ans]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: ans } })) },
+    ],
+  });
+}
+
+export function upgradesIndexHtml(L: Locale, guides: Array<{ name: string; from: number; to: number }>): string {
+  const bc = crumbs(L, [[t(L, 'up.indexTitle'), null]]);
+  const rows = guides
+    .map(
+      (g) =>
+        `<tr><td><a href="${L.prefix}/npm/${esc(g.name)}" dir="ltr">${esc(g.name)}</a></td><td><a href="${L.prefix}/upgrade/npm/${esc(g.name)}/${g.from}-to-${g.to}" dir="ltr">${g.from}.x → ${g.to}.x</a></td></tr>`,
+    )
+    .join('');
+  const body = `${bc.html}<h1>${esc(t(L, 'up.indexTitle'))}</h1><p class="muted">${esc(t(L, 'up.indexIntro'))}</p>
+${guides.length ? `<div class="card"><table><tr><th>${esc(t(L, 'browse.colPackage'))}</th><th>${esc(t(L, 'up.colGuide'))}</th></tr>${rows}</table></div>` : `<p class="muted">${esc(t(L, 'up.pending'))}</p>`}`;
+  return layout(L, { title: `${t(L, 'up.indexTitle')} — npm | Vigia`, description: t(L, 'up.indexIntro'), path: '/upgrade', body, ld: [bc.ld] });
+}
+
+/** Secciones extra de la página del paquete: compatibilidad por runtime y guías disponibles. */
+export function packageIntelSections(
+  L: Locale,
+  eco: string,
+  name: string,
+  compat: Array<{ target: string; version: string | null }>,
+  guides: Array<{ from: number; to: number }>,
+): string {
+  let html = '';
+  if (compat.length) {
+    html += `<h2>${esc(t(L, 'compat.title'))}</h2><p class="muted">${esc(t(L, 'compat.intro'))}</p><div class="card"><table><tr><th>${esc(t(L, 'compat.colRuntime'))}</th><th>${esc(t(L, 'compat.colVersion'))}</th></tr>${compat
+      .map((c) => `<tr><td>${codeCell(c.target.replace('@', ' '))}</td><td>${c.version ? codeCell(c.version) : `<span class="muted">${esc(t(L, 'compat.none'))}</span>`}</td></tr>`)
+      .join('')}</table></div>`;
+  }
+  if (guides.length) {
+    html += `<h2>${esc(t(L, 'pkg.upgradeGuides'))}</h2><ul class="grid">${guides
+      .map((g) => `<li><a href="${L.prefix}/upgrade/${eco}/${esc(name)}/${g.from}-to-${g.to}" dir="ltr">${g.from}.x → ${g.to}.x</a></li>`)
+      .join('')}</ul>`;
+  }
+  return html;
 }
