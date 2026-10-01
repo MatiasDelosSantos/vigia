@@ -91,7 +91,7 @@ export const vi: Messages = {
   'docs.when2': 'Trước khi cập nhật các phụ thuộc (POST /v1/check).',
   'docs.when3': 'Trước khi viết cứng ID của một mô hình AI vào mã nguồn.',
   'docs.mcpTitle': 'Máy chủ MCP',
-  'docs.mcpText': 'Endpoint HTTP dạng streamable, không cần xác thực. Công cụ: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
+  'docs.mcpText': 'Endpoint HTTP dạng streamable, không cần xác thực. Công cụ: package_status, check_dependencies, recent_changes, model_info, find_package, version_status, upgrade_impact, symbol_status, find_compatible_version.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'tình trạng hiện tại của một gói; tham số tùy chọn as_of trả về những gì Vigia khẳng định tại thời điểm đó',
   'docs.ep.history': 'các thay đổi đã ghi nhận của một gói',

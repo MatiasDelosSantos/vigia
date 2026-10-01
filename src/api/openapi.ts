@@ -48,6 +48,30 @@ export function openapi() {
           responses: { '200': { description: 'Version status' } },
         },
       },
+      '/v1/packages/npm/{name}/upgrade': {
+        get: {
+          operationId: 'getUpgradeImpact',
+          summary: 'What breaks between two versions: removed/changed exports and members, new deprecations, engines/peerDependencies changes and changelog (from TypeScript types; 202 while analysis is queued)',
+          parameters: [name, { name: 'from', in: 'query', required: true, schema: { type: 'string' }, description: 'Version or major, e.g. 14 or 14.2.3' }, { name: 'to', in: 'query', schema: { type: 'string' }, description: 'Version or major; default latest' }],
+          responses: { '200': { description: 'Upgrade report' }, '202': { description: 'Analysis queued; retry after retry_after_s' } },
+        },
+      },
+      '/v1/packages/npm/{name}/symbols/{symbol}': {
+        get: {
+          operationId: 'getSymbolStatus',
+          summary: 'Whether an export (or Class.member) exists in a version, its signature, import path and deprecation',
+          parameters: [name, { name: 'symbol', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'query', schema: { type: 'string' } }, { name: 'module', in: 'query', schema: { type: 'string' } }],
+          responses: { '200': { description: 'Symbol status' }, '202': { description: 'Analysis queued' } },
+        },
+      },
+      '/v1/packages/{ecosystem}/{name}/compatible': {
+        get: {
+          operationId: 'findCompatibleVersion',
+          summary: 'Newest stable version compatible with the given runtime/peer versions (engines, peerDependencies, Requires-Python of each version)',
+          parameters: [eco, name, { name: 'with', in: 'query', required: true, schema: { type: 'string' }, description: 'e.g. node@18,react@18 or python@3.8' }],
+          responses: { '200': { description: 'Compatible version' } },
+        },
+      },
       '/v1/check': {
         post: {
           operationId: 'checkDependencies',

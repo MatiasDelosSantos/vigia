@@ -91,7 +91,7 @@ export const ja: Messages = {
   'docs.when2': '依存関係を更新する前（POST /v1/check）。',
   'docs.when3': 'AI モデルの ID をコードに直接書く前。',
   'docs.mcpTitle': 'MCP サーバー',
-  'docs.mcpText': 'Streamable HTTP エンドポイント（認証不要）。ツール：package_status、check_dependencies、recent_changes、model_info、find_package、version_status。',
+  'docs.mcpText': 'Streamable HTTP エンドポイント（認証不要）。ツール：package_status、check_dependencies、recent_changes、model_info、find_package、version_status、upgrade_impact、symbol_status、find_compatible_version。',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'パッケージの現在の状態。任意の as_of パラメーターで、その時点で Vigia が示していた内容を返します',
   'docs.ep.history': 'パッケージで確認された変更',

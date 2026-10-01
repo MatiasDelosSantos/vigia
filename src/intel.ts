@@ -228,7 +228,10 @@ export async function symbolStatus(entity: EntityRow, symbol: string, versionSpe
     const all = new Set<string>();
     for (const exps of Object.values(snap.surface.modules)) for (const n of Object.keys(exps)) all.add(n);
     const lower = owner.toLowerCase();
-    suggestions = [...all].filter((n) => n.toLowerCase().includes(lower) || lower.includes(n.toLowerCase())).slice(0, 10);
+    // Coincidencias parciales primero; después nombres a distancia de edición ≤ 2 (errores de tipeo).
+    const partial = [...all].filter((n) => n.toLowerCase().includes(lower) || lower.includes(n.toLowerCase()));
+    const close = [...all].filter((n) => !partial.includes(n) && Math.abs(n.length - owner.length) <= 2 && editDistance(n.toLowerCase(), lower) <= 2);
+    suggestions = [...partial, ...close].slice(0, 10);
   }
   return {
     status: 'ok' as const,
@@ -276,4 +279,19 @@ export async function guidesFor(entityId: number): Promise<Array<{ from: number;
   const out: Array<{ from: number; to: number; fromVersion: string; toVersion: string }> = [];
   for (let i = 1; i < majors.length; i++) out.push({ from: majors[i - 1]!, to: majors[i]!, fromVersion: byMajor.get(majors[i - 1]!)!, toVersion: byMajor.get(majors[i]!)! });
   return out;
+}
+
+/** Distancia de Levenshtein (nombres cortos: costo despreciable). */
+export function editDistance(a: string, b: string): number {
+  const dp = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0]!;
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = dp[j]!;
+      dp[j] = Math.min(dp[j]! + 1, dp[j - 1]! + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return dp[b.length]!;
 }

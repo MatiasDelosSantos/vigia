@@ -35,4 +35,7 @@ export const ar4: Messages4 = {
   'compat.colVersion': 'أحدث إصدار متوافق',
   'compat.none': 'لا يوجد',
   'pkg.upgradeGuides': 'أدلة ترقية هذه الحزمة',
+  'docs.ep.upgrade': 'ما الذي يتعطل بين إصدارين (npm): واجهات محذوفة أو معدّلة، حالات إيقاف، تغييرات المتطلبات، سجل التغييرات',
+  'docs.ep.symbol': 'هل يوجد تصدير في إصدار ما، وتوقيعه، ومسار استيراده، وحالة إيقافه (npm)',
+  'docs.ep.compatible': 'أحدث إصدار متوافق مع إصدارات Node/React/Python المحددة',
 };

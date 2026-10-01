@@ -35,4 +35,7 @@ export const id4: Messages4 = {
   'compat.colVersion': 'Versi kompatibel terbaru',
   'compat.none': 'tidak ada',
   'pkg.upgradeGuides': 'Panduan pembaruan untuk paket ini',
+  'docs.ep.upgrade': 'apa yang rusak antara dua versi (npm): API dihapus/diubah, penandaan usang, perubahan persyaratan, changelog',
+  'docs.ep.symbol': 'apakah sebuah ekspor ada di suatu versi, tanda tangannya, jalur impor, dan status usang (npm)',
+  'docs.ep.compatible': 'versi terbaru yang kompatibel dengan versi Node/React/Python yang diberikan',
 };

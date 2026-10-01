@@ -35,4 +35,7 @@ export const pl4: Messages4 = {
   'compat.colVersion': 'Najnowsza zgodna wersja',
   'compat.none': 'brak',
   'pkg.upgradeGuides': 'Przewodniki aktualizacji tego pakietu',
+  'docs.ep.upgrade': 'co się psuje między dwiema wersjami (npm): usunięte/zmienione API, wycofania, zmiany wymagań, changelog',
+  'docs.ep.symbol': 'czy eksport istnieje w wersji, jego sygnatura, ścieżka importu i wycofanie (npm)',
+  'docs.ep.compatible': 'najnowsza wersja zgodna z podanymi wersjami Node/React/Python',
 };

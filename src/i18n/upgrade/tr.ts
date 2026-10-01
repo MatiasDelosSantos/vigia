@@ -35,4 +35,7 @@ export const tr4: Messages4 = {
   'compat.colVersion': 'En yeni uyumlu sürüm',
   'compat.none': 'yok',
   'pkg.upgradeGuides': 'Bu paket için yükseltme kılavuzları',
+  'docs.ep.upgrade': 'iki sürüm arasında neyin bozulduğu (npm): kaldırılan/değişen API’ler, kullanımdan kaldırmalar, gereksinim değişiklikleri, changelog',
+  'docs.ep.symbol': 'bir dışa aktarımın bir sürümde var olup olmadığı, imzası, içe aktarma yolu ve kullanımdan kaldırma durumu (npm)',
+  'docs.ep.compatible': 'belirtilen Node/React/Python sürümleriyle uyumlu en yeni sürüm',
 };

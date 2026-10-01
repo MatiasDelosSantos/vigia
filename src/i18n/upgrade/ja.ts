@@ -35,4 +35,7 @@ export const ja4: Messages4 = {
   'compat.colVersion': '互換性のある最新バージョン',
   'compat.none': 'なし',
   'pkg.upgradeGuides': 'このパッケージのアップグレードガイド',
+  'docs.ep.upgrade': '2 つのバージョン間で何が壊れるか（npm）：削除・変更された API、非推奨、要件の変更、changelog',
+  'docs.ep.symbol': 'エクスポートがそのバージョンに存在するか、シグネチャ、インポートパス、非推奨かどうか（npm）',
+  'docs.ep.compatible': '指定した Node／React／Python のバージョンと互換性のある最新バージョン',
 };

@@ -63,3 +63,12 @@ describe('compatibilidad', () => {
     expect(checks.map((c) => c.ok)).toEqual([true, false]);
   });
 });
+
+import { editDistance } from '../src/intel.js';
+describe('editDistance', () => {
+  it('detecta errores de tipeo', () => {
+    expect(editDistance('cookiez', 'cookies')).toBe(1);
+    expect(editDistance('useRouter', 'useRoutre')).toBe(2);
+    expect(editDistance('abc', 'xyz')).toBe(3);
+  });
+});

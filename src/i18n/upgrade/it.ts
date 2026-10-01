@@ -35,4 +35,7 @@ export const it4: Messages4 = {
   'compat.colVersion': 'Versione compatibile più recente',
   'compat.none': 'nessuna',
   'pkg.upgradeGuides': 'Guide all’aggiornamento di questo pacchetto',
+  'docs.ep.upgrade': 'cosa si rompe tra due versioni (npm): API rimosse/modificate, deprecazioni, requisiti cambiati, changelog',
+  'docs.ep.symbol': 'se un export esiste in una versione, la sua firma, il percorso di import e la deprecazione (npm)',
+  'docs.ep.compatible': 'versione più recente compatibile con le versioni di Node/React/Python indicate',
 };

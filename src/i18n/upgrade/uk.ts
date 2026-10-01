@@ -35,4 +35,7 @@ export const uk4: Messages4 = {
   'compat.colVersion': 'Найновіша сумісна версія',
   'compat.none': 'немає',
   'pkg.upgradeGuides': 'Посібники з оновлення цього пакета',
+  'docs.ep.upgrade': 'що ламається між двома версіями (npm): видалені/змінені API, застарівання, зміни вимог, changelog',
+  'docs.ep.symbol': 'чи є експорт у версії, його сигнатура, шлях імпорту та ознака застарівання (npm)',
+  'docs.ep.compatible': 'найновіша версія, сумісна з указаними версіями Node/React/Python',
 };

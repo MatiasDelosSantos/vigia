@@ -34,6 +34,9 @@ export const en4 = {
   'compat.colVersion': 'Newest compatible version',
   'compat.none': 'none',
   'pkg.upgradeGuides': 'Upgrade guides for this package',
+  'docs.ep.upgrade': 'what breaks between two versions (npm): removed/changed APIs, deprecations, requirement changes, changelog',
+  'docs.ep.symbol': 'whether an export exists in a version, its signature, import path and deprecation (npm)',
+  'docs.ep.compatible': 'newest version compatible with given Node/React/Python versions',
 } as const;
 
 export type Message4Key = keyof typeof en4;

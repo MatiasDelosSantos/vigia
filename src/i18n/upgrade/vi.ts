@@ -35,4 +35,7 @@ export const vi4: Messages4 = {
   'compat.colVersion': 'Phiên bản tương thích mới nhất',
   'compat.none': 'không có',
   'pkg.upgradeGuides': 'Hướng dẫn nâng cấp cho gói này',
+  'docs.ep.upgrade': 'những gì bị hỏng giữa hai phiên bản (npm): API bị xóa/thay đổi, ngừng hỗ trợ, thay đổi yêu cầu, changelog',
+  'docs.ep.symbol': 'một export có tồn tại trong phiên bản không, chữ ký, đường dẫn import và trạng thái ngừng hỗ trợ (npm)',
+  'docs.ep.compatible': 'phiên bản mới nhất tương thích với các phiên bản Node/React/Python đã cho',
 };

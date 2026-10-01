@@ -90,7 +90,7 @@ export const en = {
   'docs.when2': 'Before upgrading dependencies (POST /v1/check).',
   'docs.when3': 'Before hardcoding an AI model ID.',
   'docs.mcpTitle': 'MCP server',
-  'docs.mcpText': 'Streamable HTTP endpoint, no authentication. Tools: package_status, check_dependencies, recent_changes, model_info, find_package, version_status.',
+  'docs.mcpText': 'Streamable HTTP endpoint, no authentication. Tools: package_status, check_dependencies, recent_changes, model_info, find_package, version_status, upgrade_impact, symbol_status, find_compatible_version.',
   'docs.restTitle': 'REST API',
   'docs.ep.package': 'current state of a package; optional as_of returns what Vigia asserted at that moment',
   'docs.ep.history': 'observed changes of a package',

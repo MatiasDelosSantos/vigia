@@ -35,4 +35,7 @@ export const ko4: Messages4 = {
   'compat.colVersion': '호환되는 최신 버전',
   'compat.none': '없음',
   'pkg.upgradeGuides': '이 패키지의 업그레이드 가이드',
+  'docs.ep.upgrade': '두 버전 사이에 무엇이 깨지는지 (npm): 삭제·변경된 API, 지원 중단, 요구 사항 변경, changelog',
+  'docs.ep.symbol': 'export가 해당 버전에 있는지, 시그니처, import 경로, 지원 중단 여부 (npm)',
+  'docs.ep.compatible': '지정한 Node/React/Python 버전과 호환되는 최신 버전',
 };

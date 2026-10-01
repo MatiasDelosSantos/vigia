@@ -354,6 +354,9 @@ const ENDPOINTS: Array<[string, AnyKey]> = [
   ['GET /v1/packages/{npm|pypi}/{name}/history', 'docs.ep.history'],
   ['GET /v1/packages/{npm|pypi}/{name}/versions', 'docs.ep.versions'],
   ['GET /v1/packages/{npm|pypi}/{name}/versions/{version}', 'docs.ep.version'],
+  ['GET /v1/packages/npm/{name}/upgrade?from=14&to=15', 'docs.ep.upgrade'],
+  ['GET /v1/packages/npm/{name}/symbols/{symbol}?version=', 'docs.ep.symbol'],
+  ['GET /v1/packages/{npm|pypi}/{name}/compatible?with=node@18,react@18', 'docs.ep.compatible'],
   ['POST /v1/check', 'docs.ep.check'],
   ['GET /v1/models · GET /v1/models/{id}', 'docs.ep.models'],
   ['GET /v1/changes?since={seq}', 'docs.ep.changes'],
@@ -431,6 +434,10 @@ export function llmsTxt(): string {
 - [npm package status](${u}/v1/packages/npm/react): GET /v1/packages/{npm|pypi}/{name}
 - [Version status and vulnerabilities](${u}/v1/packages/npm/express/versions/4.17.1): GET /v1/packages/{npm|pypi}/{name}/versions/{version}
 - [Version history and maintenance](${u}/v1/packages/npm/react/versions?stable=true): GET /v1/packages/{npm|pypi}/{name}/versions
+- [Upgrade impact: what breaks between versions](${u}/v1/packages/npm/next/upgrade?from=14&to=15): GET /v1/packages/npm/{name}/upgrade?from=&to=
+- [Does an API exist in a version?](${u}/v1/packages/npm/next/symbols/cookies?version=15): GET /v1/packages/npm/{name}/symbols/{symbol}
+- [Newest compatible version](${u}/v1/packages/npm/next/compatible?with=node@18,react@18): GET /v1/packages/{eco}/{name}/compatible?with=
+- [Upgrade guides](${u}/upgrade): breaking-change reports between major versions
 - [Check dependencies](${u}/docs.md): POST /v1/check
 - [AI models](${u}/v1/models): prices, context windows and retirement dates
 - [Recent changes](${u}/v1/changes): changefeed

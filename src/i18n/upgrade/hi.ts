@@ -35,4 +35,7 @@ export const hi4: Messages4 = {
   'compat.colVersion': 'सबसे नया संगत संस्करण',
   'compat.none': 'कोई नहीं',
   'pkg.upgradeGuides': 'इस पैकेज की अपग्रेड गाइड',
+  'docs.ep.upgrade': 'दो संस्करणों के बीच क्या टूटता है (npm): हटाए/बदले API, डिप्रिकेशन, आवश्यकताओं के बदलाव, changelog',
+  'docs.ep.symbol': 'किसी संस्करण में एक्सपोर्ट मौजूद है या नहीं, उसका सिग्नेचर, इम्पोर्ट पाथ और डिप्रिकेशन (npm)',
+  'docs.ep.compatible': 'दिए गए Node/React/Python संस्करणों के साथ संगत सबसे नया संस्करण',
 };

@@ -35,4 +35,7 @@ export const zh4: Messages4 = {
   'compat.colVersion': '最新兼容版本',
   'compat.none': '无',
   'pkg.upgradeGuides': '此软件包的升级指南',
+  'docs.ep.upgrade': '两个版本之间会破坏什么（npm）：删除/修改的 API、弃用、要求变化、changelog',
+  'docs.ep.symbol': '某个导出在该版本中是否存在、其签名、导入路径以及是否已弃用（npm）',
+  'docs.ep.compatible': '与指定的 Node/React/Python 版本兼容的最新版本',
 };
