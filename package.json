@@ -2,7 +2,7 @@
   "name": "vigia",
   "version": "0.1.0",
   "private": true,
-  "description": "Hechos verificados y fechados sobre el estado del software para agentes de IA",
+  "description": "Verified, dated facts about npm and PyPI packages for AI agents: what breaks between versions, per-version vulnerabilities, compatible versions. REST + MCP.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -35,5 +35,23 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"
-  }
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MatiasDelosSantos/vigia.git"
+  },
+  "homepage": "https://vigia.coredls.cloud",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "npm",
+    "pypi",
+    "breaking-changes",
+    "dependencies",
+    "semver",
+    "typescript",
+    "osv"
+  ]
 }

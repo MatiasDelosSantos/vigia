@@ -10,5 +10,9 @@
       "type": "streamable-http",
       "url": "https://vigia.coredls.cloud/mcp"
     }
-  ]
+  ],
+  "repository": {
+    "url": "https://github.com/MatiasDelosSantos/vigia",
+    "source": "github"
+  }
 }
