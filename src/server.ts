@@ -13,9 +13,11 @@ import { splitPackagePath } from './paths.js';
 import { availableGuides, compatibilityTable, compatibleVersion, guidesFor, symbolStatus, upgradeReport } from './intel.js';
 import { parseConstraints } from './upgrade.js';
 import { openapi } from './api/openapi.js';
-import { upgradeHtml, upgradesIndexHtml } from './api/pages.js';
+import { upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
 import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
 import { recentVersions } from './versions.js';
+import semver from 'semver';
+import { atom, describeChange, majorReleases, recentChangeRows } from './feeds.js';
 import { basicAuth } from 'hono/basic-auth';
 import { botName, classify, routeGroup, startAnalytics, stopAnalytics, track, trackVisitor, type ClientClass } from './analytics.js';
 import { BADGE_TYPES, badgeFor, badgeSvg, type BadgeType } from './api/badge.js';
@@ -344,6 +346,73 @@ if (process.env.ADMIN_PASSWORD) {
   });
 }
 
+// Feeds Atom: cambios detectados y guías de actualización nuevas (suscripción para lectores, agregadores y bots).
+app.get('/feed/changes.atom', async (c) => {
+  const rows = await recentChangeRows(14, ['released', 'deprecated', 'retirement_announced', 'removed'], 200);
+  const entries = rows.map((r) => ({ id: `${config.publicUrl}/v1/changes#${r.seq}`, updated: r.detected_at.toISOString(), ...describeChange(r) }));
+  const xml = atom({
+    id: `${config.publicUrl}/feed/changes.atom`,
+    title: 'Vigia — package and AI model changes',
+    subtitle: 'New releases, deprecations and AI model retirements, detected automatically.',
+    self: `${config.publicUrl}/feed/changes.atom`,
+    alternate: `${config.publicUrl}/changes`,
+    entries,
+  });
+  return c.body(xml, 200, { 'content-type': 'application/atom+xml; charset=utf-8', 'cache-control': 'public, max-age=600' });
+});
+
+app.get('/feed/upgrades.atom', async (c) => {
+  const r = await pool.query<{ name: string; ts: Date }>(
+    `SELECT e.name, max(s.computed_at) AS ts FROM api_snapshot s JOIN entity e ON e.id = s.entity_id WHERE s.status = 'ok' AND e.ecosystem = 'npm' GROUP BY e.name`,
+  );
+  const ts = new Map(r.rows.map((x) => [x.name, x.ts]));
+  const guides = (await availableGuides(5000))
+    .map((g) => ({ ...g, ts: ts.get(g.name) ?? new Date() }))
+    .sort((a, b) => b.ts.getTime() - a.ts.getTime())
+    .slice(0, 100);
+  const entries = guides.map((g) => ({
+    id: `${config.publicUrl}/upgrade/npm/${g.name}/${g.from}-to-${g.to}`,
+    title: `${g.name} ${g.from} → ${g.to}: what breaks`,
+    link: `${config.publicUrl}/upgrade/npm/${g.name}/${g.from}-to-${g.to}`,
+    updated: g.ts.toISOString(),
+    summary: `Automatic breaking-change report for ${g.name} ${g.fromVersion} → ${g.toVersion}, computed from its TypeScript types.`,
+  }));
+  const xml = atom({
+    id: `${config.publicUrl}/feed/upgrades.atom`,
+    title: 'Vigia — upgrade guides',
+    subtitle: 'Automatic breaking-change reports between major versions of npm packages.',
+    self: `${config.publicUrl}/feed/upgrades.atom`,
+    alternate: `${config.publicUrl}/upgrade`,
+    entries,
+  });
+  return c.body(xml, 200, { 'content-type': 'application/atom+xml; charset=utf-8', 'cache-control': 'public, max-age=600' });
+});
+
+app.get('/weekly', async (c) => {
+  const majors = await majorReleases(7, 150);
+  const guides = new Map((await availableGuides(5000)).map((g) => [`${g.name}@${g.to}`, g]));
+  const total = await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM change_event WHERE kind = 'released' AND detected_at > now() - interval '7 days'`);
+  const dep = await recentChangeRows(7, ['deprecated'], 100);
+  const models = await recentChangeRows(7, ['retirement_announced', 'price_changed', 'removed'], 200);
+  const now = new Date();
+  const html = weeklyHtml({
+    from: new Date(now.getTime() - 7 * 86_400_000).toISOString().slice(0, 10),
+    to: now.toISOString().slice(0, 10),
+    totalReleases: total.rows[0]?.n ?? 0,
+    majors: majors.map((m) => {
+      const toMajor = semver.coerce(m.new_value?.version)?.major;
+      const g = m.ecosystem === 'npm' && toMajor !== undefined ? guides.get(`${m.name}@${toMajor}`) : undefined;
+      return { ecosystem: m.ecosystem, name: m.name, from: m.old_value?.version ?? '?', to: m.new_value?.version ?? '?', guide: g ? `/upgrade/npm/${g.name}/${g.from}-to-${g.to}` : null };
+    }),
+    deprecated: dep.filter((d) => d.ecosystem !== 'ai').map((d) => ({ ecosystem: d.ecosystem, name: d.name })),
+    models: models
+      .filter((m) => m.ecosystem === 'ai')
+      .slice(0, 50)
+      .map((m) => ({ name: m.name, kind: m.kind.replace(/_/g, ' '), detail: m.kind === 'retirement_announced' ? String(m.new_value ?? '') : '' })),
+  });
+  return c.html(html, 200, { 'cache-control': CACHE_SHORT });
+});
+
 app.get('/terms', (c) => c.html(legalHtml('terms'), 200, { 'cache-control': CACHE_LONG }));
 app.get('/privacy', (c) => c.html(legalHtml('privacy'), 200, { 'cache-control': CACHE_LONG }));
 
@@ -386,7 +455,7 @@ app.get('/sitemaps/:file', async (c) => {
   );
   const guides = await availableGuides(5000);
   const guidePaths = guides.filter((g) => L.code === 'en' || guides.indexOf(g) < 300).map((g) => `/upgrade/npm/${g.name}/${g.from}-to-${g.to}`);
-  const urls = ['/', '/check', '/upgrade', '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths]
+  const urls = ['/', '/check', '/upgrade', ...(L.code === 'en' ? ['/weekly'] : []), '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths]
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
     .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {

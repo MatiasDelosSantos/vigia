@@ -77,6 +77,7 @@ export function layout(
 ${alternates}${opts.singleLanguage ? '' : `<link rel="alternate" hreflang="x-default" href="${esc(localeUrl(LOCALES[0]!, opts.path))}">`}
 ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.publicUrl + opts.mdPath)}">` : ''}
 <link rel="alternate" type="application/json" href="${esc(config.publicUrl)}/openapi.json" title="OpenAPI">
+<link rel="alternate" type="application/atom+xml" href="${esc(config.publicUrl)}/feed/changes.atom" title="Vigia: package changes"><link rel="alternate" type="application/atom+xml" href="${esc(config.publicUrl)}/feed/upgrades.atom" title="Vigia: upgrade guides">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#1f5f8b">
 ${og}<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(opts.title)}"><meta name="twitter:description" content="${esc(opts.description)}">
 ${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : ''}
@@ -809,4 +810,45 @@ export function packageIntelSections(
       .join('')}</ul>`;
   }
   return html;
+}
+
+// ------------------------------------------------------------------------------------------ resumen semanal
+
+export function weeklyHtml(data: {
+  from: string;
+  to: string;
+  totalReleases: number;
+  majors: Array<{ ecosystem: string; name: string; from: string; to: string; guide: string | null }>;
+  deprecated: Array<{ ecosystem: string; name: string }>;
+  models: Array<{ name: string; kind: string; detail: string }>;
+}): string {
+  const L = LOCALES[0]!;
+  const majorRows = data.majors
+    .map((m) => {
+      const guide = m.guide ? `<a href="${esc(m.guide)}">what breaks</a>` : '<span class="muted">—</span>';
+      return `<tr><td><a href="/${esc(m.ecosystem)}/${esc(m.name)}" dir="ltr">${esc(m.name)}</a> <span class="muted">${esc(m.ecosystem)}</span></td><td><code>${esc(m.from)}</code> → <strong><code>${esc(m.to)}</code></strong></td><td>${guide}</td></tr>`;
+    })
+    .join('');
+  const majors = data.majors.length
+    ? `<div class="card"><table><tr><th>Package</th><th>Release</th><th>Upgrade guide</th></tr>${majorRows}</table></div>`
+    : '<p class="muted">No new major versions this week among tracked packages.</p>';
+  const deprecated = data.deprecated.length
+    ? `<ul class="grid">${data.deprecated.map((d) => `<li><a href="/${esc(d.ecosystem)}/${esc(d.name)}" dir="ltr">${esc(d.name)}</a></li>`).join('')}</ul>`
+    : '<p class="muted">None this week.</p>';
+  const models = data.models.length
+    ? `<ul>${data.models.map((m) => `<li><a href="/models/${esc(m.name)}" dir="ltr">${esc(m.name)}</a>: ${esc(m.kind)} ${esc(m.detail)}</li>`).join('')}</ul>`
+    : '<p class="muted">None this week.</p>';
+  const body = `<h1>This week in package upgrades</h1>
+<p class="muted">${esc(data.from)} → ${esc(data.to)} · generated automatically from ${esc(data.totalReleases)} releases detected by Vigia across the npm and PyPI packages it tracks. Subscribe: <a href="/feed/changes.atom">changes feed</a> · <a href="/feed/upgrades.atom">upgrade guides feed</a>.</p>
+<h2>New major versions (${data.majors.length})</h2>${majors}
+<h2>Newly deprecated packages (${data.deprecated.length})</h2>${deprecated}
+<h2>AI model changes (${data.models.length})</h2>${models}`;
+  return layout(L, {
+    title: `This week in npm & PyPI upgrades (${data.to}) — Vigia`,
+    description: `New major versions, deprecations and AI model changes detected between ${data.from} and ${data.to}, with links to automatic breaking-change reports.`,
+    path: '/weekly',
+    body,
+    singleLanguage: true,
+    ld: [{ '@type': 'CollectionPage', name: 'This week in package upgrades', dateModified: data.to, url: `${config.publicUrl}/weekly` }],
+  });
 }

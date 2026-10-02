@@ -6,6 +6,7 @@ import { refreshEntity } from './connectors/index.js';
 import type { EntityRow } from './facts.js';
 import { submitIndexNow } from './indexnow.js';
 import { recoverJobs, runNextJob, scheduleTopUpgrades } from './analysis.js';
+import { scheduleNewMajorGuides } from './feeds.js';
 
 const BATCH = 24;
 const LEASE = "interval '10 minutes'"; // si el worker muere a mitad de camino, la entidad vuelve a la cola
@@ -94,12 +95,19 @@ const PREGEN_EVERY_MS = 6 * 3600_000;
 async function analysisLoop(): Promise<void> {
   // La primera pregeneración espera 5 min para no competir con el arranque.
   let lastPregen = Date.now() - PREGEN_EVERY_MS + 5 * 60_000;
+  let lastMajorScan = 0;
   while (!stopping) {
     if (Date.now() - lastPregen > PREGEN_EVERY_MS) {
       lastPregen = Date.now();
       await scheduleTopUpgrades(300)
         .then((n) => n && console.log(`pregeneración: ${n} análisis encolados`))
         .catch((err) => console.error('pregeneración falló:', err instanceof Error ? err.message : err));
+    }
+    if (Date.now() - lastMajorScan > 30 * 60_000) {
+      lastMajorScan = Date.now();
+      await scheduleNewMajorGuides()
+        .then((n) => n && console.log(`versiones mayores nuevas: ${n} análisis encolados`))
+        .catch((err) => console.error('detector de mayores falló:', err instanceof Error ? err.message : err));
     }
     const worked = await runNextJob().catch((err) => {
       console.error('cola de análisis:', err instanceof Error ? err.message : err);
