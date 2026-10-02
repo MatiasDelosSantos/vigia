@@ -1,0 +1,19 @@
+# Vigia revisando sus propias dependencias (y demostración de la Action).
+name: dependencies
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: '0 9 * * 1'
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  vigia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
