@@ -261,6 +261,14 @@ app.all('/mcp', async (c) => {
   } catch {
     /* cuerpo no JSON: lo rechaza el transporte */
   }
+  // Tolerancia: algunos clientes MCP piden sólo application/json (sin text/event-stream) y el SDK los rechaza con 406.
+  // Como siempre respondemos JSON, completamos el Accept en lugar de expulsarlos.
+  const accept = c.req.header('accept') ?? '';
+  if (c.req.method === 'POST' && !(accept.includes('application/json') && accept.includes('text/event-stream'))) {
+    const headers = new Headers(c.req.raw.headers);
+    headers.set('accept', 'application/json, text/event-stream');
+    return handleMcp(new Request(c.req.raw, { headers }));
+  }
   return handleMcp(c.req.raw);
 });
 
