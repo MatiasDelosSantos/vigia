@@ -68,6 +68,8 @@ function changeKind(predicate: string, oldValue: any, newValue: any): string | n
       return 'limit_changed';
     case 'license':
       return 'license_changed';
+    case 'eol_cycles':
+      return 'lifecycle_changed';
     default:
       return null;
   }

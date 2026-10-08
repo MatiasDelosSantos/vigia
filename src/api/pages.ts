@@ -83,7 +83,7 @@ ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.p
 ${og}<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(opts.title)}"><meta name="twitter:description" content="${esc(opts.description)}">
 ${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : ''}
 <style>${CSS}</style></head><body><main>
-<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/upgrade">${esc(t(L, 'nav.upgrades'))}</a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/crates">crates</a><a href="${L.prefix}/packagist">PHP</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
+<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/upgrade">${esc(t(L, 'nav.upgrades'))}</a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/crates">crates</a><a href="${L.prefix}/packagist">PHP</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/eol">EOL</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
 ${opts.body}
 <footer>${esc(t(L, 'footer.text'))} <a href="${L.prefix}/status">${esc(t(L, 'nav.status'))}</a> · <a href="/terms">${esc(t(L, 'footer.terms'))}</a> · <a href="/privacy">${esc(t(L, 'footer.privacy'))}</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
 <nav class="langs" aria-label="${esc(t(L, 'footer.languages'))}">${langLinks}</nav></footer>
@@ -366,6 +366,7 @@ const ENDPOINTS: Array<[string, AnyKey]> = [
   ['GET /v1/packages/{npm|pypi|crates|packagist}/{name}/compatible?with=node@18,react@18', 'docs.ep.compatible'],
   ['POST /v1/check', 'docs.ep.check'],
   ['GET /v1/models · GET /v1/models/{id}', 'docs.ep.models'],
+  ['GET /v1/eol · GET /v1/eol/{product}/{version}', 'docs.ep.eol'],
   ['GET /v1/changes?since={seq}', 'docs.ep.changes'],
   ['GET /v1/search?q=', 'docs.ep.search'],
   ['GET /v1/facts/{hash}', 'docs.ep.facts'],
@@ -447,6 +448,7 @@ export function llmsTxt(): string {
 - [Upgrade guides](${u}/upgrade): breaking-change reports between major versions
 - [Check dependencies](${u}/docs.md): POST /v1/check
 - [AI models](${u}/v1/models): prices, context windows and retirement dates
+- [End-of-life dates](${u}/v1/eol/python/3.9): is a language/runtime/framework/OS version still supported? GET /v1/eol/{product}/{version} (~480 products; list at ${u}/v1/eol)
 - [Recent changes](${u}/v1/changes): changefeed
 
 ## MCP

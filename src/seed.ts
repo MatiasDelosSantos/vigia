@@ -51,6 +51,22 @@ async function seedPackagist(): Promise<void> {
   console.log(`seed packagist: ${n} paquetes`);
 }
 
+/** Productos de endoflife.date (~480): lenguajes, runtimes, frameworks, bases de datos y sistemas operativos. */
+async function seedEol(): Promise<void> {
+  const r = await httpGet('https://endoflife.date/api/v1/products/', { timeoutMs: 30_000 });
+  if (r.status !== 200) throw new Error(`status ${r.status}`);
+  const names: string[] = (JSON.parse(r.body).result ?? []).map((x: { name: string }) => x.name).filter((n: unknown) => typeof n === 'string' && /^[a-z0-9][a-z0-9._-]{0,80}$/.test(n));
+  if (names.length === 0) return;
+  const res = await pool.query(
+    `INSERT INTO entity (type, ecosystem, name, key, popularity_rank, origin, check_interval_s, next_check_at)
+     SELECT 'product', 'eol', n, 'eol:' || n, rk, 'seed', 43200, now() + (rk * interval '200 milliseconds')
+     FROM unnest($1::text[], $2::int[]) AS t(n, rk)
+     ON CONFLICT (key) DO UPDATE SET tracked = true`,
+    [names, names.map((_, i) => i + 1)],
+  );
+  console.log(`seed eol: ${res.rowCount ?? 0} productos`);
+}
+
 /** Idempotente: se ejecuta en cada arranque del worker y respeta los límites configurados. */
 export async function seed(): Promise<void> {
   await pool.query(
@@ -61,6 +77,7 @@ export async function seed(): Promise<void> {
   );
   // En segundo plano: respeta el ritmo de crates.io y no demora el arranque del worker.
   void seedCrates().catch((err) => console.error('seed crates falló (se reintenta en el próximo arranque):', err));
+  void seedEol().catch((err) => console.error('seed eol falló (se reintenta en el próximo arranque):', err));
   void seedPackagist().catch((err) => console.error('seed packagist falló (se reintenta en el próximo arranque):', err));
   const npm = await insertPackages('npm', npmTopDownloads.slice(0, config.seedNpmLimit));
   console.log(`seed npm: ${npm} paquetes`);

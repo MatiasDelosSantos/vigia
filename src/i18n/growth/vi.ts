@@ -36,4 +36,5 @@ export const vi5: Messages5 = {
   'stat.packagist': 'Gói PHP được theo dõi (Packagist)',
   'pkg.requiresPhp': 'Phiên bản PHP yêu cầu (composer.json)',
   'docs.src.packagist': 'Packagist: siêu dữ liệu Composer v2 tĩnh từ repo.packagist.org (mỗi phiên bản kèm ràng buộc require.php và cờ bị bỏ rơi); cảnh báo bảo mật từ OSV.',
+  'docs.ep.eol': 'ngày hết hỗ trợ và trạng thái hỗ trợ của ~480 ngôn ngữ, runtime, framework và hệ điều hành',
 };

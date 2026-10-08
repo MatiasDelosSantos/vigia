@@ -223,6 +223,7 @@ export async function stats() {
       (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'pypi' AND tracked) AS pypi_tracked,
       (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'crates' AND tracked) AS crates_tracked,
       (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'packagist' AND tracked) AS packagist_tracked,
+      (SELECT count(*) FROM entity WHERE type = 'product' AND ecosystem = 'eol' AND tracked) AS eol_products,
       (SELECT count(*) FROM entity WHERE type = 'package' AND last_checked_at IS NOT NULL) AS packages_checked,
       (SELECT count(*) FROM entity WHERE ecosystem = 'ai') AS models,
       (SELECT count(*) FROM fact) AS facts_recorded,

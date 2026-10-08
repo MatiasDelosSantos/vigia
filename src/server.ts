@@ -23,6 +23,8 @@ import { basicAuth } from 'hono/basic-auth';
 import { botName, classify, routeGroup, startAnalytics, stopAnalytics, track, trackVisitor, type ClientClass } from './analytics.js';
 import { BADGE_TYPES, badgeFor, badgeSvg, type BadgeType } from './api/badge.js';
 import { LOCALES, t, type Locale } from './i18n/index.js';
+import { cycleView, findProduct, listProducts, productView } from './eol.js';
+import { eolCycleHtml, eolIndexHtml, eolProductHtml } from './api/eol-pages.js';
 
 const app = new Hono();
 
@@ -211,6 +213,27 @@ app.get('/v1/models/*', async (c) => {
   return c.json(await modelView(e, asOf));
 });
 
+// Fin de vida de lenguajes, runtimes, frameworks y sistemas (endoflife.date).
+app.get('/v1/eol', async (c) => {
+  c.header('cache-control', CACHE_SHORT);
+  const data = await listProducts(c.req.query('category') || undefined);
+  return c.json({ data, meta: { count: data.length, source: 'https://endoflife.date', as_of: new Date().toISOString(), license: 'MIT (endoflife.date); computed status by Vigia' } });
+});
+app.get('/v1/eol/*', async (c) => {
+  const [product, ...rest] = decodeURIComponent(c.req.path.slice('/v1/eol/'.length)).split('/').filter(Boolean);
+  const e = product ? await findProduct(product) : null;
+  if (!e) {
+    const q = (product ?? '').toLowerCase();
+    const similar = (await listProducts()).filter((p) => q && (p.product.includes(q) || p.label.toLowerCase().includes(q))).slice(0, 10);
+    return c.json({ error: 'not_found', message: `Product ${product} is not tracked. See /v1/eol for the list.`, did_you_mean: similar.map((p) => p.product) }, 404);
+  }
+  c.header('cache-control', CACHE_SHORT);
+  if (rest.length === 0) return c.json(await productView(e));
+  const v = await cycleView(e, rest.join('/'));
+  if (!v) return c.json({ error: 'cycle_not_found', message: `No release cycle of ${e.name} matches "${rest.join('/')}".`, cycles: (await productView(e)).data.cycles.map((x) => x.cycle) }, 404);
+  return c.json(v);
+});
+
 app.get('/v1/changes', async (c) => {
   c.header('cache-control', 'public, max-age=10');
   return c.json(
@@ -289,13 +312,13 @@ app.get('/.well-known/mcp/server-card.json', (c) =>
     {
       name: 'cloud.coredls.vigia/vigia',
       title: 'Vigia',
-      description: 'What breaks between versions, per-version vulnerabilities, compatible versions: npm/PyPI facts.',
-      version: '0.3.0',
+      description: 'What breaks between versions, vulnerabilities, compatible versions and end-of-life dates: npm, PyPI, Rust, PHP.',
+      version: '0.4.0',
       websiteUrl: config.publicUrl,
       documentationUrl: `${config.publicUrl}/docs`,
       remotes: [{ type: 'streamable-http', url: `${config.publicUrl}/mcp` }],
       authentication: { required: false },
-      tools: ['package_status', 'version_status', 'upgrade_impact', 'symbol_status', 'find_compatible_version', 'check_dependencies', 'recent_changes', 'model_info', 'find_package'],
+      tools: ['package_status', 'version_status', 'upgrade_impact', 'symbol_status', 'find_compatible_version', 'check_dependencies', 'recent_changes', 'model_info', 'find_package', 'eol_status'],
     },
     200,
     { 'cache-control': CACHE_LONG, 'access-control-allow-origin': '*' },
@@ -445,8 +468,24 @@ app.get('/robots.txt', (c) =>
 
 // Índice de sitemaps: uno por idioma (cada uno < 50.000 URLs).
 app.get('/sitemap.xml', (c) => {
-  const items = LOCALES.map((L) => `<sitemap><loc>${esc(`${config.publicUrl}/sitemaps/${L.code}.xml`)}</loc></sitemap>`).join('');
+  const items = [...LOCALES.map((L) => L.code), 'eol'].map((code) => `<sitemap><loc>${esc(`${config.publicUrl}/sitemaps/${code}.xml`)}</loc></sitemap>`).join('');
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${items}</sitemapindex>`, 200, {
+    'content-type': 'application/xml; charset=utf-8',
+    'cache-control': 'public, max-age=3600',
+  });
+});
+
+app.get('/sitemaps/eol.xml', async (c) => {
+  const products = await listProducts();
+  const urls: string[] = ['/eol'];
+  for (const p of products) {
+    urls.push(`/eol/${p.product}`);
+    const e = await findProduct(p.product);
+    if (!e) continue;
+    for (const cy of (await productView(e)).data.cycles) urls.push(`/eol/${p.product}/${cy.cycle}`);
+  }
+  const body = urls.map((p) => `<url><loc>${esc(config.publicUrl + p)}</loc></url>`).join('');
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, {
     'content-type': 'application/xml; charset=utf-8',
     'cache-control': 'public, max-age=3600',
   });
@@ -483,6 +522,21 @@ app.get('/sitemaps/:file', async (c) => {
     'content-type': 'application/xml; charset=utf-8',
     'cache-control': 'public, max-age=3600',
   });
+});
+
+// Páginas de fin de vida: sólo en inglés (las búsquedas son por nombre de producto y versión).
+app.get('/eol', async (c) => c.html(eolIndexHtml(await listProducts()), 200, { 'cache-control': CACHE_SHORT }));
+app.get('/eol/*', async (c) => {
+  const [product, ...rest] = decodeURIComponent(c.req.path.slice('/eol/'.length)).split('/').filter(Boolean);
+  const e = product ? await findProduct(product) : null;
+  if (!e) return c.html(listPage(LOCALES[0]!, 'Product not found', 'This product is not tracked. See the full list of products.', c.req.path, '<p><a href="/eol">All products →</a></p>'), 404, { 'cache-control': CACHE_SHORT });
+  if (e.name !== product) return c.redirect(`/eol/${[e.name, ...rest].join('/')}`, 301);
+  if (rest.length === 0) return c.html(eolProductHtml(await productView(e)), 200, { 'cache-control': CACHE_SHORT });
+  const v = await cycleView(e, rest.join('/'));
+  if (!v) return c.html(listPage(LOCALES[0]!, 'Version not found', `No release cycle of ${e.name} matches this version.`, c.req.path, `<p><a href="/eol/${esc(e.name)}">All ${esc(e.name)} versions →</a></p>`), 404, { 'cache-control': CACHE_SHORT });
+  // Un patch ("3.9.7") se redirige a la página canónica de su ciclo ("3.9").
+  if (v.data.cycle.cycle !== rest.join('/')) return c.redirect(`/eol/${e.name}/${v.data.cycle.cycle}`, 301);
+  return c.html(eolCycleHtml(v), 200, { 'cache-control': CACHE_SHORT });
 });
 
 /** Páginas para humanos y buscadores, en cada idioma. Inglés en la raíz; el resto bajo /{código}. */

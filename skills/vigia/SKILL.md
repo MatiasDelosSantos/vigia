@@ -1,6 +1,6 @@
 ---
 name: vigia
-description: Check verified, dated facts about npm, PyPI and Rust (crates.io) packages and AI models before writing or changing code that depends on them. Use when adding, upgrading or pinning a dependency, when unsure whether a function or import still exists in the installed version, when choosing a version compatible with a given Node/React/Python/Rust, when asked about vulnerabilities in an exact version, or when picking an AI model by price, context window or retirement date.
+description: Check verified, dated facts about npm, PyPI, Rust (crates.io) and PHP (Packagist) packages, end-of-life dates and AI models before writing or changing code that depends on them. Use when adding, upgrading or pinning a dependency, when unsure whether a function or import still exists in the installed version, when choosing a version compatible with a given Node/React/Python/Rust, when asked about vulnerabilities in an exact version, when checking whether a language/runtime/framework/OS version is end of life, or when picking an AI model by price, context window or retirement date.
 ---
 
 # Vigia: version-accurate facts for coding agents
@@ -20,6 +20,7 @@ Your training data has a cutoff, but package ecosystems release new versions eve
 | The project is pinned to an older runtime: newest version that works with it | `find_compatible_version` | `GET /v1/packages/{eco}/{name}/compatible?with=node@18,react@18` |
 | Is this exact version vulnerable, and what is the nearest fixed version? | `version_status` | `GET /v1/packages/{eco}/{name}/versions/{version}` |
 | Reviewing a whole `package.json` or `requirements.txt` | `check_dependencies` | `POST /v1/check` |
+| Choosing a runtime, base image or CI matrix: is this Python/Node/PHP/Java/Ruby/Go/framework/database/OS version still supported, and when does it reach end of life? | `eol_status` | `GET /v1/eol/{product}/{version}` |
 | Choosing or replacing an AI model (price per 1M tokens, context, retirement date) | `model_info` | `GET /v1/models/{id}` |
 | What changed recently in the ecosystem | `recent_changes` | `GET /v1/changes` |
 

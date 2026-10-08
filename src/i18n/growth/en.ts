@@ -35,6 +35,7 @@ export const en5 = {
   'stat.packagist': 'PHP packages tracked (Packagist)',
   'pkg.requiresPhp': 'Required PHP version (composer.json)',
   'docs.src.packagist': 'Packagist: static Composer v2 metadata from repo.packagist.org (every version with its require.php constraint and abandoned flag); advisories from OSV.',
+  'docs.ep.eol': 'end-of-life and support status of ~480 languages, runtimes, frameworks and operating systems',
 } as const;
 
 export type Message5Key = keyof typeof en5;

@@ -21,6 +21,9 @@ export function openapi() {
     },
     servers: [{ url: config.publicUrl }],
     paths: {
+      '/v1/eol': { get: { operationId: 'listEolProducts', summary: 'List products with end-of-life data (~480: languages, runtimes, frameworks, databases, operating systems)', parameters: [{ name: 'category', in: 'query', schema: { type: 'string' } }], responses: { '200': { description: 'Products' } } } },
+      '/v1/eol/{product}': { get: { operationId: 'eolProduct', summary: 'Every release cycle of a product with support status (supported / security_only / end_of_life) and dates', parameters: [{ name: 'product', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'Cycles' }, '404': { description: 'Unknown product' } } } },
+      '/v1/eol/{product}/{version}': { get: { operationId: 'eolCycle', summary: 'Status of one version ("3.9.7" matches cycle "3.9") with a recommendation when it is out of support', parameters: [{ name: 'product', in: 'path', required: true, schema: { type: 'string' } }, { name: 'version', in: 'path', required: true, schema: { type: 'string' } }], responses: { '200': { description: 'Cycle status' }, '404': { description: 'Unknown product or version' } } } },
       '/v1/packages/{ecosystem}/{name}': {
         get: {
           operationId: 'getPackage',

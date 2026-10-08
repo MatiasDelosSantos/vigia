@@ -106,7 +106,7 @@ export function routeGroup(path: string): string {
   if (/^\/(npm|pypi|crates|packagist)\/.+/.test(p)) return 'page:package';
   if (p.startsWith('/models')) return 'page:models';
   if (p.startsWith('/badge/')) return 'badge';
-  if (/^\/(docs|changes|status|check|terms|privacy)/.test(p)) return `page:${p.split('/')[1]!.replace('.md', '')}`;
+  if (/^\/(docs|changes|status|check|terms|privacy|eol|weekly)/.test(p)) return `page:${p.split('/')[1]!.replace('.md', '')}`;
   if (/^\/(sitemap|sitemaps|robots\.txt|llms\.txt|openapi\.json|favicon|\.well-known)/.test(p)) return 'meta';
   return 'other';
 }

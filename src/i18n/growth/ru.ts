@@ -36,4 +36,5 @@ export const ru5: Messages5 = {
   'stat.packagist': 'Отслеживаемые пакеты PHP (Packagist)',
   'pkg.requiresPhp': 'Требуемая версия PHP (composer.json)',
   'docs.src.packagist': 'Packagist: статические метаданные Composer v2 с repo.packagist.org (каждая версия с ограничением require.php и пометкой «заброшен»); уведомления об уязвимостях из OSV.',
+  'docs.ep.eol': 'конец поддержки и статус поддержки ~480 языков, сред выполнения, фреймворков и ОС',
 };

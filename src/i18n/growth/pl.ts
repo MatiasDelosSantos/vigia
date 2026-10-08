@@ -36,4 +36,5 @@ export const pl5: Messages5 = {
   'stat.packagist': 'Śledzone pakiety PHP (Packagist)',
   'pkg.requiresPhp': 'Wymagana wersja PHP (composer.json)',
   'docs.src.packagist': 'Packagist: statyczne metadane Composer v2 z repo.packagist.org (każda wersja z ograniczeniem require.php i flagą porzucenia); ostrzeżenia z OSV.',
+  'docs.ep.eol': 'koniec wsparcia i status wsparcia ~480 języków, środowisk uruchomieniowych, frameworków i systemów operacyjnych',
 };

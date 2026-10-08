@@ -36,4 +36,5 @@ export const ja5: Messages5 = {
   'stat.packagist': '追跡中の PHP パッケージ (Packagist)',
   'pkg.requiresPhp': '必要な PHP バージョン (composer.json)',
   'docs.src.packagist': 'Packagist：repo.packagist.org の静的な Composer v2 メタデータ（各バージョンの require.php 制約と放棄フラグ）。脆弱性情報は OSV。',
+  'docs.ep.eol': '約 480 の言語・ランタイム・フレームワーク・OS のサポート終了日とサポート状況',
 };

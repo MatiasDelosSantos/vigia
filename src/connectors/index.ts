@@ -4,6 +4,7 @@ import { ingestNpm, type IngestResult } from './npm.js';
 import { ingestPypi, pollPypiRss } from './pypi.js';
 import { ingestCrates } from './crates.js';
 import { ingestPackagist } from './packagist.js';
+import { ingestEol } from './eol.js';
 import { syncOpenRouter } from './openrouter.js';
 
 export type { IngestResult };
@@ -22,11 +23,13 @@ export async function refreshEntity(db: Queryable, entity: EntityRow): Promise<I
   if (entity.type === 'package' && entity.ecosystem === 'pypi') return ingestPypi(db, entity);
   if (entity.type === 'package' && entity.ecosystem === 'crates') return ingestCrates(db, entity);
   if (entity.type === 'package' && entity.ecosystem === 'packagist') return ingestPackagist(db, entity);
+  if (entity.type === 'product' && entity.ecosystem === 'eol') return ingestEol(db, entity);
   throw new Error(`sin conector para ${entity.key}`);
 }
 
 /** Cada cuánto revisar un paquete según su popularidad (los feeds tienen su propio intervalo). */
 export function intervalFor(ecosystem: string, rank: number | null, origin: string): number {
+  if (ecosystem === 'eol') return 12 * 3600;
   if (origin === 'demand' || rank === null) return 6 * 3600;
   // crates.io: 1 request/segundo para todo el ecosistema; con 3.000 crates, una revisión cada 12 h cabe de sobra.
   if (ecosystem === 'crates' || ecosystem === 'packagist') return rank <= 300 ? 3600 : 12 * 3600;

@@ -36,4 +36,5 @@ export const hi5: Messages5 = {
   'stat.packagist': 'ट्रैक किए गए PHP पैकेज (Packagist)',
   'pkg.requiresPhp': 'आवश्यक PHP वर्ज़न (composer.json)',
   'docs.src.packagist': 'Packagist: repo.packagist.org से स्थिर Composer v2 मेटाडेटा (हर वर्ज़न अपनी require.php शर्त और परित्यक्त फ़्लैग के साथ); सुरक्षा सूचनाएँ OSV से।',
+  'docs.ep.eol': 'लगभग 480 भाषाओं, रनटाइम, फ़्रेमवर्क और ऑपरेटिंग सिस्टम का सपोर्ट समाप्ति और सपोर्ट स्थिति',
 };

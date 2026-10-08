@@ -36,4 +36,5 @@ export const nl5: Messages5 = {
   'stat.packagist': 'Gevolgde PHP-pakketten (Packagist)',
   'pkg.requiresPhp': 'Vereiste PHP-versie (composer.json)',
   'docs.src.packagist': 'Packagist: statische Composer v2-metadata van repo.packagist.org (elke versie met de require.php-beperking en abandoned-vlag); beveiligingsmeldingen van OSV.',
+  'docs.ep.eol': 'einde van ondersteuning en supportstatus van ~480 talen, runtimes, frameworks en besturingssystemen',
 };

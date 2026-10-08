@@ -42,6 +42,7 @@ summary: 4 removed exports · 10 changed signatures · 16 changed/removed member
 | **Is my exact version vulnerable? Nearest fixed version?** (OSV) | `GET /v1/packages/{eco}/{name}/versions/{version}` | `version_status` |
 | Latest version, deprecation, runtime requirements, peers, license | `GET /v1/packages/{eco}/{name}` | `package_status` |
 | Check a whole `package.json` / `requirements.txt` | `POST /v1/check` | `check_dependencies` |
+| **Is this Python / Node / PHP / Java / Django / Ubuntu... version still supported? When does it reach end of life?** (~480 products) | `GET /v1/eol/{product}/{version}` | `eol_status` |
 | AI model prices, context windows, retirement dates | `GET /v1/models` | `model_info` |
 
 Every response includes **when it was verified and where the data came from**. Full spec: [`/openapi.json`](https://vigia.coredls.cloud/openapi.json) · Docs in 18 languages: [`/docs`](https://vigia.coredls.cloud/docs).
