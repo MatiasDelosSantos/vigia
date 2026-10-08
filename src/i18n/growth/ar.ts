@@ -30,4 +30,7 @@ export const ar5: Messages5 = {
   'model.providers': 'المزوّدون',
   'model.colIn': 'الإدخال / 1M',
   'model.colOut': 'الإخراج / 1M',
+  'stat.crates': 'حزم Rust المتتبَّعة (crates)',
+  'pkg.requiresRust': 'الحد الأدنى لإصدار Rust (rust-version)',
+  'docs.src.crates': 'crates.io: واجهة crates.io (جميع الإصدارات مع تاريخ النشر وحالة yanked والحد الأدنى لإصدار Rust)؛ التنبيهات الأمنية من OSV.',
 };

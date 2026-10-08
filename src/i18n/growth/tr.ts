@@ -30,4 +30,7 @@ export const tr5: Messages5 = {
   'model.providers': 'Sağlayıcılar',
   'model.colIn': 'Giriş / 1M',
   'model.colOut': 'Çıkış / 1M',
+  'stat.crates': 'Takip edilen Rust crate\'leri',
+  'pkg.requiresRust': 'Asgari Rust sürümü (rust-version)',
+  'docs.src.crates': 'crates.io: crates.io API\'si (yayın tarihi, yanked durumu ve asgari Rust sürümüyle tüm sürümler); güvenlik uyarıları OSV\'den.',
 };

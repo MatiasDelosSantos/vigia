@@ -30,4 +30,7 @@ export const hi5: Messages5 = {
   'model.providers': 'प्रदाता',
   'model.colIn': 'इनपुट / 1M',
   'model.colOut': 'आउटपुट / 1M',
+  'stat.crates': 'ट्रैक किए गए Rust क्रेट',
+  'pkg.requiresRust': 'न्यूनतम Rust वर्ज़न (rust-version)',
+  'docs.src.crates': 'crates.io: crates.io API (प्रकाशन तिथि, yanked स्थिति और न्यूनतम Rust वर्ज़न के साथ सभी वर्ज़न); सुरक्षा सूचनाएँ OSV से।',
 };

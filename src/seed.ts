@@ -23,6 +23,20 @@ async function insertPackages(eco: Ecosystem, names: string[]): Promise<number> 
   return r.rowCount ?? 0;
 }
 
+/** Crates más descargados según crates.io (100 por página, 1 request/segundo). */
+async function seedCrates(): Promise<void> {
+  const names: string[] = [];
+  for (let page = 1; names.length < config.seedCratesLimit && page <= 60; page++) {
+    const r = await httpGet(`https://crates.io/api/v1/crates?sort=downloads&per_page=100&page=${page}`, { timeoutMs: 30_000 });
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const rows: Array<{ name: string }> = JSON.parse(r.body).crates ?? [];
+    if (rows.length === 0) break;
+    names.push(...rows.map((x) => x.name));
+  }
+  const n = await insertPackages('crates', names.slice(0, config.seedCratesLimit));
+  console.log(`seed crates: ${n} paquetes`);
+}
+
 /** Idempotente: se ejecuta en cada arranque del worker y respeta los límites configurados. */
 export async function seed(): Promise<void> {
   await pool.query(
@@ -31,6 +45,8 @@ export async function seed(): Promise<void> {
        ('feed', 'system', 'openrouter-models', 'feed:openrouter-models', 'feed', 900)
      ON CONFLICT (key) DO NOTHING`,
   );
+  // En segundo plano: respeta el ritmo de crates.io y no demora el arranque del worker.
+  void seedCrates().catch((err) => console.error('seed crates falló (se reintenta en el próximo arranque):', err));
   const npm = await insertPackages('npm', npmTopDownloads.slice(0, config.seedNpmLimit));
   console.log(`seed npm: ${npm} paquetes`);
   try {

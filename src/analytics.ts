@@ -102,8 +102,8 @@ export function routeGroup(path: string): string {
   if (p.startsWith('/v1/packages/')) return 'api:package';
   if (p.startsWith('/v1/')) return `api:${p.split('/')[2]}`;
   if (p === '/mcp') return 'mcp';
-  if (/^\/(npm|pypi)$/.test(p)) return 'page:browse';
-  if (/^\/(npm|pypi)\/.+/.test(p)) return 'page:package';
+  if (/^\/(npm|pypi|crates)$/.test(p)) return 'page:browse';
+  if (/^\/(npm|pypi|crates)\/.+/.test(p)) return 'page:package';
   if (p.startsWith('/models')) return 'page:models';
   if (p.startsWith('/badge/')) return 'badge';
   if (/^\/(docs|changes|status|check|terms|privacy)/.test(p)) return `page:${p.split('/')[1]!.replace('.md', '')}`;

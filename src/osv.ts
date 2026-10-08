@@ -5,7 +5,7 @@ import type { Ecosystem } from './util.js';
 
 const OSV = 'https://api.osv.dev/v1';
 const CACHE_MS = 6 * 3600_000;
-const osvEco = (eco: Ecosystem) => (eco === 'npm' ? 'npm' : 'PyPI');
+const osvEco = (eco: Ecosystem) => (eco === 'npm' ? 'npm' : eco === 'crates' ? 'crates.io' : 'PyPI');
 
 export interface Vulnerability {
   id: string;

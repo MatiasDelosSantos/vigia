@@ -16,19 +16,19 @@ export interface VersionRow {
 }
 
 export function isPrerelease(eco: Ecosystem, v: string): boolean {
-  if (eco === 'npm') return (semver.prerelease(v)?.length ?? 0) > 0;
+  if (eco !== 'pypi') return (semver.prerelease(v)?.length ?? 0) > 0;
   const x = pep440.explain(v);
   return x ? x.is_prerelease || x.is_devrelease : false;
 }
 
 /** Orden de versiones del ecosistema (null si alguna no es parseable). */
 export function compareVersions(eco: Ecosystem, a: string, b: string): number | null {
-  if (eco === 'npm') return semver.valid(a) && semver.valid(b) ? semver.compare(a, b) : null;
+  if (eco !== 'pypi') return semver.valid(a) && semver.valid(b) ? semver.compare(a, b) : null;
   return pep440.valid(a) && pep440.valid(b) ? pep440.compare(a, b) : null;
 }
 
 export function majorOf(eco: Ecosystem, v: string): number | null {
-  if (eco === 'npm') return semver.valid(v) ? semver.major(v) : null;
+  if (eco !== 'pypi') return semver.valid(v) ? semver.major(v) : null;
   return pep440.valid(v) ? pep440.major(v) : null;
 }
 

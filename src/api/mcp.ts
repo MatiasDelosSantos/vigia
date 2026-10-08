@@ -22,7 +22,8 @@ async function waitForAnalysis<T extends { status: string }>(fn: () => Promise<T
 
 const json = (o: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(o) }] });
 const fail = (msg: string) => ({ content: [{ type: 'text' as const, text: msg }], isError: true });
-const ecosystem = z.enum(['npm', 'pypi']).describe('Package ecosystem');
+const ecosystem = z.enum(['npm', 'pypi', 'crates']).describe('Package ecosystem (crates = Rust, crates.io)');
+const manifestEcosystem = z.enum(['npm', 'pypi']).describe('Manifest type: npm = package.json, pypi = requirements.txt');
 
 function buildServer(): McpServer {
   const server = new McpServer(
@@ -38,7 +39,7 @@ function buildServer(): McpServer {
     {
       title: 'Package status',
       description:
-        'Latest stable version, publish date, deprecation/yank status, runtime requirements (engines/python), peer dependencies, license and advisories of an npm or PyPI package. Use before recommending, installing or pinning a package version.',
+        'Latest stable version, publish date, deprecation/yank status, runtime requirements (engines/python/rust-version), peer dependencies, license and advisories of an npm, PyPI or Rust (crates.io) package. Use before recommending, installing or pinning a package version.',
       inputSchema: { ecosystem, name: z.string().min(1).max(214).describe('Exact package name, e.g. "next", "@types/node", "requests"') },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -114,11 +115,11 @@ function buildServer(): McpServer {
     {
       title: 'Newest compatible version',
       description:
-        'Finds the newest stable version of an npm or PyPI package that works with the given runtime/peer versions, using the engines, peerDependencies or Requires-Python declared by EACH version. Use when a project is pinned to an older Node, React, TypeScript or Python and the latest version may not support it.',
+        'Finds the newest stable version of an npm, PyPI or Rust (crates.io) package that works with the given runtime/peer versions, using the engines, peerDependencies, Requires-Python or rust-version declared by EACH version. Use when a project is pinned to an older Node, React, TypeScript or Python and the latest version may not support it.',
       inputSchema: {
         ecosystem,
         name: z.string().min(1).max(214).describe('Package name'),
-        with: z.string().min(3).max(200).describe('Comma-separated constraints: "node@18,react@18" (npm) or "python@3.8" (pypi)'),
+        with: z.string().min(3).max(200).describe('Comma-separated constraints: "node@18,react@18" (npm), "python@3.8" (pypi) or "rust@1.70" (crates)'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -138,7 +139,7 @@ function buildServer(): McpServer {
     {
       title: 'Version status and vulnerabilities',
       description:
-        'For one exact version of an npm or PyPI package: whether it exists, when it was published, whether it was deprecated/yanked, how far behind latest it is, its known vulnerabilities (OSV) and the nearest version that fixes all of them. Use before keeping, pinning or recommending a specific version, or when auditing a lockfile entry.',
+        'For one exact version of an npm, PyPI or Rust (crates.io) package: whether it exists, when it was published, whether it was deprecated/yanked, how far behind latest it is, its known vulnerabilities (OSV) and the nearest version that fixes all of them. Use before keeping, pinning or recommending a specific version, or when auditing a lockfile entry.',
       inputSchema: {
         ecosystem,
         name: z.string().min(1).max(214).describe('Exact package name'),
@@ -162,7 +163,7 @@ function buildServer(): McpServer {
       title: 'Check dependencies',
       description:
         'Evaluates a full package.json (npm) or requirements.txt (pypi): for each dependency returns the latest version, whether the declared range includes it (up_to_date / outdated / outdated_major), whether the package is deprecated, and known vulnerabilities (OSV IDs) of the lowest version the range allows. Use when opening a project or before upgrading dependencies.',
-      inputSchema: { ecosystem, manifest: z.string().min(2).max(200_000).describe('Full content of the manifest file') },
+      inputSchema: { ecosystem: manifestEcosystem, manifest: z.string().min(2).max(200_000).describe('Full content of the manifest file') },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
     async ({ ecosystem: eco, manifest }) => {
@@ -182,7 +183,7 @@ function buildServer(): McpServer {
       title: 'Recent changes',
       description: 'Latest detected changes: new releases, deprecations, removed packages, AI model price changes or retirement announcements. Optionally filtered to one package or model.',
       inputSchema: {
-        ecosystem: z.enum(['npm', 'pypi', 'ai']).optional(),
+        ecosystem: z.enum(['npm', 'pypi', 'crates', 'ai']).optional(),
         name: z.string().max(214).optional().describe('If set, history of that package or model'),
         limit: z.number().int().min(1).max(50).default(20),
       },
@@ -231,7 +232,7 @@ function buildServer(): McpServer {
     {
       title: 'Find package',
       description: 'Finds packages or models by name prefix, ordered by popularity. Use when the exact name is unknown.',
-      inputSchema: { query: z.string().min(1).max(100), ecosystem: z.enum(['npm', 'pypi', 'ai']).optional() },
+      inputSchema: { query: z.string().min(1).max(100), ecosystem: z.enum(['npm', 'pypi', 'crates', 'ai']).optional() },
       annotations: { readOnlyHint: true },
     },
     async ({ query, ecosystem: eco }) => json(await search(query, eco, 15)),

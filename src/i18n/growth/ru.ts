@@ -30,4 +30,7 @@ export const ru5: Messages5 = {
   'model.providers': 'Провайдеры',
   'model.colIn': 'Вход / 1M',
   'model.colOut': 'Выход / 1M',
+  'stat.crates': 'Отслеживаемые крейты Rust',
+  'pkg.requiresRust': 'Минимальная версия Rust (rust-version)',
+  'docs.src.crates': 'crates.io: API crates.io (все версии с датой публикации, статусом yanked и минимальной версией Rust); уведомления об уязвимостях из OSV.',
 };

@@ -1,6 +1,6 @@
 import { config } from '../config.js';
 
-const eco = { name: 'ecosystem', in: 'path', required: true, schema: { type: 'string', enum: ['npm', 'pypi'] } };
+const eco = { name: 'ecosystem', in: 'path', required: true, schema: { type: 'string', enum: ['npm', 'pypi', 'crates'] } };
 const name = {
   name: 'name',
   in: 'path',
@@ -116,7 +116,7 @@ export function openapi() {
           summary: 'Changefeed of detected changes, cursor-paginated',
           parameters: [
             { name: 'since', in: 'query', schema: { type: 'integer', default: 0 } },
-            { name: 'ecosystem', in: 'query', schema: { type: 'string', enum: ['npm', 'pypi', 'ai'] } },
+            { name: 'ecosystem', in: 'query', schema: { type: 'string', enum: ['npm', 'pypi', 'crates', 'ai'] } },
             { name: 'kind', in: 'query', schema: { type: 'string' } },
             { name: 'limit', in: 'query', schema: { type: 'integer', maximum: 500, default: 100 } },
           ],

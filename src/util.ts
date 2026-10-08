@@ -14,10 +14,10 @@ export function sha256(data: string | Buffer): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
-export type Ecosystem = 'npm' | 'pypi';
+export type Ecosystem = 'npm' | 'pypi' | 'crates';
 
 export function isEcosystem(v: string): v is Ecosystem {
-  return v === 'npm' || v === 'pypi';
+  return v === 'npm' || v === 'pypi' || v === 'crates';
 }
 
 /** PEP 503: minúsculas y cualquier secuencia de "-", "_" o "." se reduce a "-". */
@@ -27,12 +27,13 @@ export function normalizePypiName(name: string): string {
 
 const NPM_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 const PYPI_NAME = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const CRATES_NAME = /^[a-z0-9][a-z0-9_-]*$/;
 
 /** Devuelve el nombre canónico o null si no es un nombre válido del ecosistema. */
 export function canonicalName(eco: Ecosystem, raw: string): string | null {
-  const name = eco === 'npm' ? raw.trim().toLowerCase() : normalizePypiName(raw);
-  if (name.length === 0 || name.length > 214) return null;
-  return (eco === 'npm' ? NPM_NAME : PYPI_NAME).test(name) ? name : null;
+  const name = eco === 'pypi' ? normalizePypiName(raw) : raw.trim().toLowerCase();
+  if (name.length === 0 || name.length > (eco === 'crates' ? 64 : 214)) return null;
+  return (eco === 'npm' ? NPM_NAME : eco === 'crates' ? CRATES_NAME : PYPI_NAME).test(name) ? name : null;
 }
 
 export function entityKey(eco: string, name: string): string {
@@ -70,10 +71,22 @@ export interface FetchResult {
   etag: string | null;
 }
 
+const nextSlot = new Map<string, number>();
+
+/** Separación mínima entre requests a un mismo host (crates.io pide como máximo 1 por segundo). */
+async function pace(host: string): Promise<void> {
+  const gap = config.hostGapMs[host];
+  if (!gap) return;
+  const at = Math.max(Date.now(), nextSlot.get(host) ?? 0);
+  nextSlot.set(host, at + gap);
+  if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
+}
+
 export async function httpGet(url: string, opts: { etag?: string | null; accept?: string; timeoutMs?: number } = {}): Promise<FetchResult> {
   const host = new URL(url).host;
   await acquire(host);
   try {
+    await pace(host);
     const headers: Record<string, string> = { 'user-agent': config.userAgent, accept: opts.accept ?? 'application/json' };
     if (opts.etag) headers['if-none-match'] = opts.etag;
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000), redirect: 'follow' });

@@ -29,6 +29,9 @@ export const en5 = {
   'model.providers': 'Providers',
   'model.colIn': 'Input / 1M',
   'model.colOut': 'Output / 1M',
+  'stat.crates': 'Rust crates tracked',
+  'pkg.requiresRust': 'Minimum Rust version (rust-version)',
+  'docs.src.crates': 'crates.io: crates.io API (all versions with publish date, yanked status and minimum Rust version); advisories from OSV.',
 } as const;
 
 export type Message5Key = keyof typeof en5;

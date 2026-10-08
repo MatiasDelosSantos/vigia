@@ -27,7 +27,7 @@ async function versionRows(entityId: number): Promise<VRow[]> {
   return r.rows;
 }
 
-const majorOf = (eco: Ecosystem, v: string) => (eco === 'npm' ? (semver.valid(v) ? semver.major(v) : null) : pep440.valid(v) ? pep440.major(v) : null);
+const majorOf = (eco: Ecosystem, v: string) => (eco !== 'pypi' ? (semver.valid(v) ? semver.major(v) : null) : pep440.valid(v) ? pep440.major(v) : null);
 
 /** "15" → última estable de la 15.x; "latest"/vacío → última estable; versión exacta → tal cual. */
 export async function resolveVersionSpec(entity: EntityRow, spec: string | undefined): Promise<string | null> {
@@ -93,8 +93,10 @@ export async function compatibleVersion(entity: EntityRow, constraints: Constrai
       method:
         eco === 'npm'
           ? 'Highest stable, non-deprecated version whose engines.node / peerDependencies ranges admit every constraint. A version that does not declare a requirement counts as compatible but is listed in "unverified".'
-          : 'Highest stable, non-yanked version whose Requires-Python admits the constraint. Versions without Requires-Python are listed in "unverified".',
-      sources: eco === 'npm' ? ['https://registry.npmjs.org', 'https://deps.dev'] : [`https://pypi.org/pypi/${entity.name}/json`],
+          : eco === 'crates'
+            ? 'Highest stable, non-yanked version whose declared rust-version (minimum supported Rust) is at or below the given Rust version. Versions without rust-version are listed in "unverified".'
+            : 'Highest stable, non-yanked version whose Requires-Python admits the constraint. Versions without Requires-Python are listed in "unverified".',
+      sources: eco === 'npm' ? ['https://registry.npmjs.org', 'https://deps.dev'] : eco === 'crates' ? [`https://crates.io/api/v1/crates/${entity.name}`] : [`https://pypi.org/pypi/${entity.name}/json`],
       license: DATA_LICENSE,
     },
   };
@@ -103,7 +105,12 @@ export async function compatibleVersion(entity: EntityRow, constraints: Constrai
 /** Tabla para la página del paquete: versión más nueva compatible con cada Node/Python. */
 export async function compatibilityTable(entity: EntityRow): Promise<Array<{ target: string; version: string | null }>> {
   const eco = entity.ecosystem as Ecosystem;
-  const targets = eco === 'npm' ? ['node@16', 'node@18', 'node@20', 'node@22', 'node@24'] : ['python@3.8', 'python@3.9', 'python@3.10', 'python@3.11', 'python@3.12', 'python@3.13'];
+  const targets =
+    eco === 'npm'
+      ? ['node@16', 'node@18', 'node@20', 'node@22', 'node@24']
+      : eco === 'crates'
+        ? ['rust@1.63', 'rust@1.70', 'rust@1.75', 'rust@1.80', 'rust@1.85', 'rust@1.90']
+        : ['python@3.8', 'python@3.9', 'python@3.10', 'python@3.11', 'python@3.12', 'python@3.13'];
   const rows = (await versionRows(entity.id)).filter((r) => !r.prerelease && !r.withdrawn);
   if (!rows.some((r) => r.engines || r.requires_python)) return [];
   const ordered = sortDesc(eco, rows.map((r) => r.version));
@@ -127,7 +134,7 @@ async function ensureSnapshot(entity: EntityRow, version: string, priority: numb
 }
 
 export async function upgradeReport(entity: EntityRow, fromSpec: string | undefined, toSpec: string | undefined) {
-  if (entity.ecosystem !== 'npm') return { status: 'unsupported' as const, message: 'API surface analysis is available for npm packages (TypeScript types). PyPI support is planned.' };
+  if (entity.ecosystem !== 'npm') return { status: 'unsupported' as const, message: 'API surface analysis is available for npm packages (TypeScript types). PyPI and crates.io support is planned.' };
   const from = await resolveVersionSpec(entity, fromSpec);
   const to = await resolveVersionSpec(entity, toSpec ?? 'latest');
   if (!from || !to || !semver.valid(from) || !semver.valid(to)) return { status: 'invalid' as const, message: `Could not resolve versions (from=${fromSpec}, to=${toSpec ?? 'latest'}).` };

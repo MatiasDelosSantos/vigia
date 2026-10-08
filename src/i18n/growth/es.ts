@@ -30,4 +30,7 @@ export const es5: Messages5 = {
   'model.providers': 'Proveedores',
   'model.colIn': 'Entrada / 1M',
   'model.colOut': 'Salida / 1M',
+  'stat.crates': 'Crates de Rust seguidos',
+  'pkg.requiresRust': 'Versión mínima de Rust (rust-version)',
+  'docs.src.crates': 'crates.io: API de crates.io (todas las versiones con fecha de publicación, estado "yanked" y versión mínima de Rust); avisos de OSV.',
 };

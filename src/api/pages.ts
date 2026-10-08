@@ -83,7 +83,7 @@ ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.p
 ${og}<meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(opts.title)}"><meta name="twitter:description" content="${esc(opts.description)}">
 ${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : ''}
 <style>${CSS}</style></head><body><main>
-<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/upgrade">${esc(t(L, 'nav.upgrades'))}</a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
+<header class="top"><a class="brand" href="${home}">Vigia</a><nav><a href="${L.prefix}/check"><strong>${esc(t(L, 'nav.check'))}</strong></a><a href="${L.prefix}/upgrade">${esc(t(L, 'nav.upgrades'))}</a><a href="${L.prefix}/npm">npm</a><a href="${L.prefix}/pypi">PyPI</a><a href="${L.prefix}/crates">crates</a><a href="${L.prefix}/docs">${esc(t(L, 'nav.docs'))}</a><a href="${L.prefix}/changes">${esc(t(L, 'nav.changes'))}</a><a href="${L.prefix}/models">${esc(t(L, 'nav.models'))}</a><a href="/openapi.json">${esc(t(L, 'nav.api'))}</a></nav></header>
 ${opts.body}
 <footer>${esc(t(L, 'footer.text'))} <a href="${L.prefix}/status">${esc(t(L, 'nav.status'))}</a> · <a href="/terms">${esc(t(L, 'footer.terms'))}</a> · <a href="/privacy">${esc(t(L, 'footer.privacy'))}</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
 <nav class="langs" aria-label="${esc(t(L, 'footer.languages'))}">${langLinks}</nav></footer>
@@ -93,6 +93,7 @@ ${opts.body}
 const fmtDate = (s: unknown) => (s ? `<span dir="ltr">${esc(String(s).replace('T', ' ').replace(/\.\d+Z$|Z$/, ' UTC'))}</span>` : '<span class="muted">—</span>');
 const row = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
 const statusLabel = (L: Locale, s: string) => esc(t(L, `status.${s}` as AnyKey) ?? s);
+const ECO_LABEL = { npm: 'npm', pypi: 'PyPI', crates: 'crates.io' } as const;
 const pkgPath = (d: any) => `/${d.ecosystem}/${d.entity.slice(d.ecosystem.length + 1)}`;
 
 export interface PackageExtras {
@@ -110,11 +111,22 @@ export function packageHtml(L: Locale, view: any, history: any[], extras: Packag
   const m = view.meta;
   const latest = d.latest ?? {};
   const mt = d.maintenance ?? {};
-  const eco = d.ecosystem as 'npm' | 'pypi';
-  const ecoLabel = eco === 'npm' ? 'npm' : 'PyPI';
-  const runtime = eco === 'npm' ? 'Node.js' : 'Python';
+  const eco = d.ecosystem as 'npm' | 'pypi' | 'crates';
+  const ecoLabel = ECO_LABEL[eco];
+  const runtime = eco === 'npm' ? 'Node.js' : eco === 'crates' ? 'Rust' : 'Python';
   const none = `<span class="muted">${esc(t(L, 'pkg.noneDeclared'))}</span>`;
-  const reqText: string | null = eco === 'npm' ? (d.requires?.engines ? JSON.stringify(d.requires.engines) : null) : d.requires?.python ? `python ${d.requires.python}` : null;
+  const reqText: string | null =
+    eco === 'npm'
+      ? d.requires?.engines
+        ? JSON.stringify(d.requires.engines)
+        : null
+      : eco === 'crates'
+        ? d.requires?.rust_version
+          ? `Rust ≥ ${d.requires.rust_version}`
+          : null
+        : d.requires?.python
+          ? `python ${d.requires.python}`
+          : null;
   const reqs = reqText ? `<code>${esc(reqText)}</code>` : none;
   const peerNames = d.requires?.peer_dependencies ? Object.keys(d.requires.peer_dependencies) : [];
   const relatedSet = new Set(extras.related.map((r) => r.name));
@@ -129,7 +141,7 @@ export function packageHtml(L: Locale, view: any, history: any[], extras: Packag
   const advisories: string[] = d.advisories_on_latest ?? [];
   const path = pkgPath(d);
   const bc = crumbs(L, [[ecoLabel, `/${eco}`], [d.name, null]]);
-  const installCmd = eco === 'npm' ? `npm install ${d.name}@latest` : `pip install --upgrade ${d.name}`;
+  const installCmd = eco === 'npm' ? `npm install ${d.name}@latest` : eco === 'crates' ? `cargo add ${d.name}` : `pip install --upgrade ${d.name}`;
 
   // Preguntas frecuentes: respuestas cortas, fechadas y verificables (lo que los buscadores de IA citan).
   const faq: Array<[string, string]> = [];
@@ -182,7 +194,7 @@ ${row(t(L, 'pkg.latest'), `<strong dir="ltr">${esc(latest.version ?? '—')}</st
 ${row(t(L, 'pkg.published'), fmtDate(latest.published_at))}
 ${row(t(L, 'pkg.install'), `<code dir="ltr">${esc(installCmd)}</code>`)}
 ${d.deprecation ? row(t(L, 'pkg.deprecation'), `<span dir="auto" lang="und">${esc(d.deprecation.message)}</span>`) : ''}
-${row(eco === 'npm' ? t(L, 'pkg.requiresEngines') : t(L, 'pkg.requires'), reqs)}
+${row(eco === 'npm' ? t(L, 'pkg.requiresEngines') : eco === 'crates' ? t(L, 'pkg.requiresRust') : t(L, 'pkg.requires'), reqs)}
 ${eco === 'npm' ? row(t(L, 'pkg.peers'), peers) : ''}
 ${tags ? row(t(L, 'pkg.distTags'), tags) : ''}
 ${row(t(L, 'pkg.license'), esc(d.license ?? '—'))}
@@ -255,7 +267,7 @@ GET ${esc(config.publicUrl)}/v1/packages${esc(path)}/versions/{version}</pre>`;
         dateModified: latest.published_at ?? undefined,
         license: d.license ?? undefined,
         codeRepository: d.repository ?? undefined,
-        programmingLanguage: eco === 'npm' ? 'JavaScript' : 'Python',
+        programmingLanguage: eco === 'npm' ? 'JavaScript' : eco === 'crates' ? 'Rust' : 'Python',
         sameAs: [d.links.registry],
         url: localeUrl(L, path),
         inLanguage: L.lang,
@@ -280,7 +292,11 @@ export function packageMarkdown(view: any): string {
     `- Status: ${d.status}`,
     `- Latest stable version: ${l.version ?? 'unknown'} (published ${l.published_at ?? 'unknown date'})`,
     d.deprecation ? `- Deprecation: ${d.deprecation.message}` : null,
-    d.ecosystem === 'npm' ? `- Engines: ${d.requires?.engines ? JSON.stringify(d.requires.engines) : 'none declared'}` : `- Requires Python: ${d.requires?.python ?? 'none declared'}`,
+    d.ecosystem === 'npm'
+      ? `- Engines: ${d.requires?.engines ? JSON.stringify(d.requires.engines) : 'none declared'}`
+      : d.ecosystem === 'crates'
+        ? `- Minimum Rust version (rust-version): ${d.requires?.rust_version ?? 'none declared'}`
+        : `- Requires Python: ${d.requires?.python ?? 'none declared'}`,
     d.ecosystem === 'npm' && d.requires?.peer_dependencies ? `- Peer dependencies: ${JSON.stringify(d.requires.peer_dependencies)}` : null,
     `- License: ${d.license ?? 'unknown'}`,
     `- Advisories on latest version: ${d.advisories_on_latest?.length ? d.advisories_on_latest.join(', ') : 'none known'}`,
@@ -297,7 +313,7 @@ export function listPage(L: Locale, title: string, intro: string, path: string, 
   return layout(L, { title: `${title} — Vigia`, description: intro, path, body: `<h1>${esc(title)}</h1><p class="muted">${esc(intro)}</p>${items}` });
 }
 
-export function homeHtml(L: Locale, stats: Record<string, number | null>, popular: Record<'npm' | 'pypi', string[]>): string {
+export function homeHtml(L: Locale, stats: Record<string, number | null>, popular: Record<'npm' | 'pypi' | 'crates', string[]>): string {
   const u = esc(config.publicUrl);
   const lag = stats.release_detection_lag_p50_s;
   const body = `
@@ -307,6 +323,7 @@ export function homeHtml(L: Locale, stats: Record<string, number | null>, popula
 <div class="card"><table>
 ${row(t(L, 'stat.npm'), esc(stats.npm_tracked ?? 0))}
 ${row(t(L, 'stat.pypi'), esc(stats.pypi_tracked ?? 0))}
+${row(t(L, 'stat.crates'), esc(stats.crates_tracked ?? 0))}
 ${row(t(L, 'stat.models'), esc(stats.models ?? 0))}
 ${row(t(L, 'stat.changes24h'), esc(stats.changes_24h ?? 0))}
 ${row(t(L, 'stat.lag'), lag == null ? '—' : esc(`${Math.round(lag / 60)} ${t(L, 'unit.min')}`))}
@@ -315,6 +332,7 @@ ${popularLists(L, popular)}
 <h2>${esc(t(L, 'home.try'))}</h2>
 <pre>curl ${u}/v1/packages/npm/next
 curl ${u}/v1/packages/pypi/requests
+curl ${u}/v1/packages/crates/serde
 curl -X POST ${u}/v1/check -H 'content-type: application/json' \\
   -d '{"ecosystem":"npm","dependencies":{"react":"^17.0.0"}}'</pre>
 ${agentSection(L)}
@@ -331,13 +349,13 @@ ${agentSection(L)}
 // ------------------------------------------------------------------------------------------ documentación
 
 const ENDPOINTS: Array<[string, AnyKey]> = [
-  ['GET /v1/packages/{npm|pypi}/{name}', 'docs.ep.package'],
-  ['GET /v1/packages/{npm|pypi}/{name}/history', 'docs.ep.history'],
-  ['GET /v1/packages/{npm|pypi}/{name}/versions', 'docs.ep.versions'],
-  ['GET /v1/packages/{npm|pypi}/{name}/versions/{version}', 'docs.ep.version'],
+  ['GET /v1/packages/{npm|pypi|crates}/{name}', 'docs.ep.package'],
+  ['GET /v1/packages/{npm|pypi|crates}/{name}/history', 'docs.ep.history'],
+  ['GET /v1/packages/{npm|pypi|crates}/{name}/versions', 'docs.ep.versions'],
+  ['GET /v1/packages/{npm|pypi|crates}/{name}/versions/{version}', 'docs.ep.version'],
   ['GET /v1/packages/npm/{name}/upgrade?from=14&to=15', 'docs.ep.upgrade'],
   ['GET /v1/packages/npm/{name}/symbols/{symbol}?version=', 'docs.ep.symbol'],
-  ['GET /v1/packages/{npm|pypi}/{name}/compatible?with=node@18,react@18', 'docs.ep.compatible'],
+  ['GET /v1/packages/{npm|pypi|crates}/{name}/compatible?with=node@18,react@18', 'docs.ep.compatible'],
   ['POST /v1/check', 'docs.ep.check'],
   ['GET /v1/models · GET /v1/models/{id}', 'docs.ep.models'],
   ['GET /v1/changes?since={seq}', 'docs.ep.changes'],
@@ -345,7 +363,7 @@ const ENDPOINTS: Array<[string, AnyKey]> = [
   ['GET /v1/facts/{hash}', 'docs.ep.facts'],
   ['GET /v1/stats', 'docs.ep.stats'],
 ];
-const SOURCES: AnyKey[] = ['docs.src.npm', 'docs.src.pypi', 'docs.src.models', 'docs.src.demand', 'docs.src.history'];
+const SOURCES: AnyKey[] = ['docs.src.npm', 'docs.src.pypi', 'docs.src.crates', 'docs.src.models', 'docs.src.demand', 'docs.src.history'];
 
 export function docsMarkdown(L: Locale): string {
   const u = config.publicUrl;
@@ -405,14 +423,14 @@ export function llmsTxt(): string {
   const u = config.publicUrl;
   return `# Vigia
 
-> Verified, dated facts about the state of software (npm, PyPI) and AI models, for agents: latest version, deprecation, requirements and changes, with sources and verification timestamps.
+> Verified, dated facts about the state of software (npm, PyPI, Rust crates) and AI models, for agents: latest version, deprecation, requirements and changes, with sources and verification timestamps.
 
 ## Docs
 - [Documentation](${u}/docs.md): REST API and MCP server usage
 - [OpenAPI](${u}/openapi.json): API specification
 
 ## API
-- [npm package status](${u}/v1/packages/npm/react): GET /v1/packages/{npm|pypi}/{name}
+- [npm package status](${u}/v1/packages/npm/react): GET /v1/packages/{npm|pypi|crates}/{name} (Rust example: ${u}/v1/packages/crates/serde)
 - [Version status and vulnerabilities](${u}/v1/packages/npm/express/versions/4.17.1): GET /v1/packages/{npm|pypi}/{name}/versions/{version}
 - [Version history and maintenance](${u}/v1/packages/npm/react/versions?stable=true): GET /v1/packages/{npm|pypi}/{name}/versions
 - [Upgrade impact: what breaks between versions](${u}/v1/packages/npm/next/upgrade?from=14&to=15): GET /v1/packages/npm/{name}/upgrade?from=&to=
@@ -440,11 +458,11 @@ export const BROWSE_PAGE_SIZE = 100;
 
 export function browseHtml(
   L: Locale,
-  eco: 'npm' | 'pypi',
+  eco: 'npm' | 'pypi' | 'crates',
   page: number,
   data: { total: number; items: Array<{ name: string; version: string | null; published_at: string | null; status: string }> },
 ): string {
-  const ecoLabel = eco === 'npm' ? 'npm' : 'PyPI';
+  const ecoLabel = ECO_LABEL[eco];
   const pages = Math.max(1, Math.ceil(data.total / BROWSE_PAGE_SIZE));
   const path = page > 1 ? `/${eco}?page=${page}` : `/${eco}`;
   const bc = crumbs(L, [[ecoLabel, null]]);
@@ -468,10 +486,10 @@ export function browseHtml(
   });
 }
 
-export function popularLists(L: Locale, lists: Record<'npm' | 'pypi', string[]>): string {
-  return (['npm', 'pypi'] as const)
+export function popularLists(L: Locale, lists: Record<'npm' | 'pypi' | 'crates', string[]>): string {
+  return (['npm', 'pypi', 'crates'] as const)
     .map((eco) => {
-      const label = eco === 'npm' ? 'npm' : 'PyPI';
+      const label = ECO_LABEL[eco];
       return `<h2>${esc(t(L, 'home.popular', { eco: label }))}</h2><ul class="grid">${lists[eco]
         .map((n) => `<li><a href="${L.prefix}/${eco}/${esc(n)}" dir="ltr">${esc(n)}</a></li>`)
         .join('')}</ul><p><a href="${L.prefix}/${eco}">${esc(t(L, 'home.seeAll', { eco: label }))} →</a></p>`;
@@ -485,6 +503,7 @@ export function statusHtml(L: Locale, s: Record<string, number | null>): string 
 <div class="card"><table>
 ${row(t(L, 'stat.npm'), esc(s.npm_tracked ?? 0))}
 ${row(t(L, 'stat.pypi'), esc(s.pypi_tracked ?? 0))}
+${row(t(L, 'stat.crates'), esc(s.crates_tracked ?? 0))}
 ${row(t(L, 'health.checked'), esc(s.packages_checked ?? 0))}
 ${row(t(L, 'health.verified1h'), esc(s.verified_last_hour ?? 0))}
 ${row(t(L, 'stat.models'), esc(s.models ?? 0))}

@@ -30,4 +30,7 @@ export const vi5: Messages5 = {
   'model.providers': 'Nhà cung cấp',
   'model.colIn': 'Đầu vào / 1M',
   'model.colOut': 'Đầu ra / 1M',
+  'stat.crates': 'Crate Rust được theo dõi',
+  'pkg.requiresRust': 'Phiên bản Rust tối thiểu (rust-version)',
+  'docs.src.crates': 'crates.io: API crates.io (mọi phiên bản kèm ngày phát hành, trạng thái yanked và phiên bản Rust tối thiểu); cảnh báo bảo mật từ OSV.',
 };

@@ -30,4 +30,7 @@ export const zh5: Messages5 = {
   'model.providers': '提供商',
   'model.colIn': '输入 / 1M',
   'model.colOut': '输出 / 1M',
+  'stat.crates': '已跟踪的 Rust crate',
+  'pkg.requiresRust': '最低 Rust 版本 (rust-version)',
+  'docs.src.crates': 'crates.io：crates.io API（所有版本的发布日期、yanked 状态和最低 Rust 版本）；安全公告来自 OSV。',
 };

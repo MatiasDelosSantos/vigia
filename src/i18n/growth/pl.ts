@@ -30,4 +30,7 @@ export const pl5: Messages5 = {
   'model.providers': 'Dostawcy',
   'model.colIn': 'Wejście / 1M',
   'model.colOut': 'Wyjście / 1M',
+  'stat.crates': 'Śledzone crate\'y Rusta',
+  'pkg.requiresRust': 'Minimalna wersja Rusta (rust-version)',
+  'docs.src.crates': 'crates.io: API crates.io (wszystkie wersje z datą publikacji, statusem „yanked” i minimalną wersją Rusta); ostrzeżenia z OSV.',
 };

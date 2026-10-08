@@ -30,4 +30,7 @@ export const ko5: Messages5 = {
   'model.providers': '제공업체',
   'model.colIn': '입력 / 1M',
   'model.colOut': '출력 / 1M',
+  'stat.crates': '추적 중인 Rust 크레이트',
+  'pkg.requiresRust': '최소 Rust 버전 (rust-version)',
+  'docs.src.crates': 'crates.io: crates.io API(게시일, yanked 상태, 최소 Rust 버전이 포함된 모든 버전). 보안 권고는 OSV 제공.',
 };

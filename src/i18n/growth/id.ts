@@ -30,4 +30,7 @@ export const id5: Messages5 = {
   'model.providers': 'Penyedia',
   'model.colIn': 'Input / 1M',
   'model.colOut': 'Output / 1M',
+  'stat.crates': 'Crate Rust yang dipantau',
+  'pkg.requiresRust': 'Versi Rust minimum (rust-version)',
+  'docs.src.crates': 'crates.io: API crates.io (semua versi dengan tanggal rilis, status yanked, dan versi Rust minimum); peringatan keamanan dari OSV.',
 };

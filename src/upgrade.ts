@@ -185,13 +185,25 @@ export function satisfiesTarget(eco: Ecosystem, range: string | null | undefined
 
 export function checkVersion(eco: Ecosystem, v: VersionConstraints, constraints: Constraint[]): Check[] {
   return constraints.map((c) => {
-    const range = eco === 'pypi' ? (c.name === 'python' ? v.requires_python : null) : c.name === 'node' ? v.engines?.node ?? null : v.peer?.[c.name] ?? null;
+    // crates.io: rust-version es la versión mínima de Rust, es decir el rango ">=x".
+    const range =
+      eco === 'pypi'
+        ? c.name === 'python'
+          ? v.requires_python
+          : null
+        : eco === 'crates'
+          ? c.name === 'rust' && v.engines?.rust
+            ? `>=${v.engines.rust}`
+            : null
+          : c.name === 'node'
+            ? v.engines?.node ?? null
+            : v.peer?.[c.name] ?? null;
     return { constraint: `${c.name}@${c.version}`, range, ok: satisfiesTarget(eco, range, c.version) };
   });
 }
 
 export function sortDesc(eco: Ecosystem, versions: string[]): string[] {
-  return eco === 'npm'
+  return eco !== 'pypi'
     ? versions.filter((v) => semver.valid(v)).sort((a, b) => semver.rcompare(a, b))
     : versions.filter((v) => pep440.valid(v)).sort((a, b) => pep440.rcompare(a, b));
 }
