@@ -1,6 +1,6 @@
 ---
 name: vigia
-description: Check verified, dated facts about npm/PyPI packages and AI models before writing or changing code that depends on them. Use when adding, upgrading or pinning a dependency, when unsure whether a function or import still exists in the installed version, when choosing a version compatible with a given Node/React/Python, when asked about vulnerabilities in an exact version, or when picking an AI model by price, context window or retirement date.
+description: Check verified, dated facts about npm, PyPI and Rust (crates.io) packages and AI models before writing or changing code that depends on them. Use when adding, upgrading or pinning a dependency, when unsure whether a function or import still exists in the installed version, when choosing a version compatible with a given Node/React/Python/Rust, when asked about vulnerabilities in an exact version, or when picking an AI model by price, context window or retirement date.
 ---
 
 # Vigia: version-accurate facts for coding agents
@@ -14,7 +14,7 @@ Your training data has a cutoff, but package ecosystems release new versions eve
 
 | Situation | MCP tool | REST |
 |---|---|---|
-| Adding a dependency: what is the latest version, is it deprecated, what runtime does it need? | `package_status` | `GET /v1/packages/{npm\|pypi}/{name}` |
+| Adding a dependency: what is the latest version, is it deprecated, what runtime does it need? | `package_status` | `GET /v1/packages/{npm\|pypi\|crates}/{name}` |
 | Upgrading across a major version: what breaks? | `upgrade_impact` | `GET /v1/packages/npm/{name}/upgrade?from=14&to=15` |
 | About to call an API you remember from training: does it exist in this version, and what is its exact signature? | `symbol_status` | `GET /v1/packages/npm/{name}/symbols/{symbol}?version=15` |
 | The project is pinned to an older runtime: newest version that works with it | `find_compatible_version` | `GET /v1/packages/{eco}/{name}/compatible?with=node@18,react@18` |

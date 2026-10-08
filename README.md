@@ -1,6 +1,6 @@
 # Vigia — what breaks when you upgrade, before your agent writes the code
 
-**Vigia** is a free, open data service (REST API + MCP server) that gives AI coding agents and developers **verified, dated facts about the state of npm and PyPI packages** — the things language models get wrong because their training data is out of date.
+**Vigia** is a free, open data service (REST API + MCP server) that gives AI coding agents and developers **verified, dated facts about the state of npm, PyPI and Rust (crates.io) packages** — the things language models get wrong because their training data is out of date.
 
 🌐 **https://vigia.coredls.cloud** · MCP: `https://vigia.coredls.cloud/mcp` · Registry: `cloud.coredls.vigia/vigia`
 
@@ -76,10 +76,10 @@ jobs:
 
 ## How it works
 
-- **Registries are the source of truth.** npm and PyPI metadata with ETags, publish dates and per-version requirements; deps.dev for history; OSV for vulnerabilities; OpenRouter for AI models.
+- **Registries are the source of truth.** npm, PyPI and crates.io metadata with ETags, publish dates and per-version requirements (engines, Requires-Python, rust-version); deps.dev for npm history; OSV for vulnerabilities; OpenRouter for AI models.
 - **API surface analysis never executes package code.** Tarballs are downloaded, only `.d.ts`, `package.json` and changelogs are extracted, and the TypeScript compiler API reads the exported declarations in an isolated worker thread with memory and time limits. Packages without bundled types fall back to `@types/*`.
 - **Facts are never overwritten.** Each change closes the previous value (bitemporal history), so `?as_of=` can answer "what did Vigia say on date X".
-- **Self-updating.** A worker tracks ~10,000 popular packages (npm every 15 min–2 h; PyPI via its update feed), resolves unknown packages on first request, and pre-computes upgrade reports for the 300 most popular npm packages.
+- **Self-updating.** A worker tracks ~34,000 popular packages (npm every 15 min–2 h; PyPI via its update feed; the top 3,000 Rust crates from crates.io), resolves unknown packages on first request, and pre-computes upgrade reports for the 300 most popular npm packages.
 
 Stack: TypeScript, Node 22, Hono, PostgreSQL 17, MCP SDK, Docker.
 

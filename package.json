@@ -2,7 +2,7 @@
   "name": "vigia",
   "version": "0.1.0",
   "private": true,
-  "description": "Verified, dated facts about npm and PyPI packages for AI agents: what breaks between versions, per-version vulnerabilities, compatible versions. REST + MCP.",
+  "description": "Verified, dated facts about npm, PyPI and Rust crates for AI agents: what breaks between versions, per-version vulnerabilities, compatible versions. REST + MCP.",
   "type": "module",
   "engines": {
     "node": ">=22"
