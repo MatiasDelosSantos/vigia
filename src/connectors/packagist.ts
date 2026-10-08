@@ -65,7 +65,7 @@ export async function ingestPackagist(db: Queryable, entity: EntityRow): Promise
   const d = JSON.parse(res.body);
   const raw: Array<Record<string, any>> = d.packages?.[entity.name] ?? [];
   const docs = d.minified ? expandMinified(raw) : raw;
-  if (docs.length === 0) throw new UpstreamError('packagist: respuesta sin versiones', 502);
+  if (docs.length === 0) return { found: false, changed: false };
 
   const rows: VersionRow[] = [];
   const byVersion = new Map<string, Record<string, any>>();
@@ -92,7 +92,8 @@ export async function ingestPackagist(db: Queryable, entity: EntityRow): Promise
   }
   const stable = rows.filter((r) => !r.prerelease).map((r) => r.version).sort(semver.rcompare);
   const latestVer = stable[0] ?? rows.map((r) => r.version).sort(semver.rcompare)[0];
-  if (!latestVer) throw new UpstreamError('packagist: sin versiones utilizables', 502);
+  // Metapaquetes que sólo publican ramas de desarrollo (p. ej. roave/security-advisories): no hay versiones que seguir.
+  if (!latestVer) return { found: false, changed: false };
   const latestDoc = byVersion.get(latestVer)!;
   const publishedAt: string | null = typeof latestDoc.time === 'string' ? latestDoc.time : null;
   const abandoned = latestDoc.abandoned;
