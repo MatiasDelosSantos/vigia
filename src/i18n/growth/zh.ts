@@ -33,4 +33,7 @@ export const zh5: Messages5 = {
   'stat.crates': '已跟踪的 Rust crate',
   'pkg.requiresRust': '最低 Rust 版本 (rust-version)',
   'docs.src.crates': 'crates.io：crates.io API（所有版本的发布日期、yanked 状态和最低 Rust 版本）；安全公告来自 OSV。',
+  'stat.packagist': '已跟踪的 PHP 包 (Packagist)',
+  'pkg.requiresPhp': '所需 PHP 版本 (composer.json)',
+  'docs.src.packagist': 'Packagist：来自 repo.packagist.org 的静态 Composer v2 元数据（每个版本的 require.php 约束和废弃标记）；安全公告来自 OSV。',
 };

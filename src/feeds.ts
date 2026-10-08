@@ -53,7 +53,7 @@ export async function recentChangeRows(days: number, kinds: string[], limit: num
 
 const isMajorJump = (eco: string, a?: string, b?: string) => {
   if (!a || !b) return false;
-  if (eco === 'npm' || eco === 'pypi' || eco === 'crates') {
+  if (eco === 'npm' || eco === 'pypi' || eco === 'crates' || eco === 'packagist') {
     const ca = semver.coerce(a);
     const cb = semver.coerce(b);
     return Boolean(ca && cb && semver.major(cb) > semver.major(ca));

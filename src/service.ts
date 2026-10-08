@@ -56,10 +56,11 @@ const REGISTRY_URL: Record<string, (name: string) => string> = {
   npm: (n) => `https://www.npmjs.com/package/${n}`,
   pypi: (n) => `https://pypi.org/project/${n}/`,
   crates: (n) => `https://crates.io/crates/${n}`,
+  packagist: (n) => `https://packagist.org/packages/${n}`,
 };
 /** Fuente de datos de versiones de cada ecosistema. */
 const VERSIONS_SOURCE = (eco: string, name: string) =>
-  eco === 'npm' ? 'https://deps.dev' : eco === 'crates' ? `https://crates.io/api/v1/crates/${name}` : `https://pypi.org/pypi/${name}/json`;
+  eco === 'npm' ? 'https://deps.dev' : eco === 'crates' ? `https://crates.io/api/v1/crates/${name}` : eco === 'packagist' ? `https://repo.packagist.org/p2/${name}.json` : `https://pypi.org/pypi/${name}/json`;
 
 export interface PackageView {
   data: Record<string, unknown>;
@@ -88,7 +89,9 @@ export async function packageView(entity: EntityRow, asOf?: Date): Promise<Packa
         ? { dist_tags: v('dist_tags'), requires: { engines: v('engines'), peer_dependencies: v('peer_dependencies') } }
         : entity.ecosystem === 'crates'
           ? { requires: { rust_version: v('rust_version') }, yanked: yanked }
-          : { requires: { python: v('requires_python') }, yanked: yanked }),
+          : entity.ecosystem === 'packagist'
+            ? { requires: { php: v('php_requirement') }, yanked: yanked }
+            : { requires: { python: v('requires_python') }, yanked: yanked }),
       deprecation: deprecated?.deprecated ? { message: deprecated.message } : null,
       license: v('license'),
       advisories_on_latest: v('advisories'),
@@ -219,6 +222,7 @@ export async function stats() {
       (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'npm' AND tracked) AS npm_tracked,
       (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'pypi' AND tracked) AS pypi_tracked,
       (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'crates' AND tracked) AS crates_tracked,
+      (SELECT count(*) FROM entity WHERE type = 'package' AND ecosystem = 'packagist' AND tracked) AS packagist_tracked,
       (SELECT count(*) FROM entity WHERE type = 'package' AND last_checked_at IS NOT NULL) AS packages_checked,
       (SELECT count(*) FROM entity WHERE ecosystem = 'ai') AS models,
       (SELECT count(*) FROM fact) AS facts_recorded,
@@ -252,7 +256,7 @@ export async function versionList(entity: EntityRow, limit: number, stableOnly =
       total_versions: m.total_versions,
       returned: rows.length,
       order: 'published_at desc',
-      withdrawn_means: entity.ecosystem === 'npm' ? 'deprecated on npm' : entity.ecosystem === 'crates' ? 'yanked on crates.io' : 'all files yanked on PyPI',
+      withdrawn_means: entity.ecosystem === 'npm' ? 'deprecated on npm' : entity.ecosystem === 'crates' ? 'yanked on crates.io' : entity.ecosystem === 'packagist' ? 'marked abandoned on Packagist' : 'all files yanked on PyPI',
       source: VERSIONS_SOURCE(entity.ecosystem, entity.name),
       license: DATA_LICENSE,
     },

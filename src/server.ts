@@ -112,7 +112,7 @@ async function notFound(c: Context, eco: Ecosystem, name: string) {
 
 app.get('/v1/packages/*', async (c) => {
   const { eco, name: raw, suffix, version, symbol } = splitPackagePath(c.req.path.slice('/v1/packages/'.length));
-  if (!isEcosystem(eco)) return c.json({ error: 'invalid_ecosystem', message: 'Supported ecosystems: npm, pypi, crates' }, 400);
+  if (!isEcosystem(eco)) return c.json({ error: 'invalid_ecosystem', message: 'Supported ecosystems: npm, pypi, crates, packagist' }, 400);
   const name = canonicalName(eco, raw);
   if (!name) return c.json({ error: 'invalid_name', message: `Invalid package name for ${eco}.` }, 400);
   const asOf = parseAsOf(c);
@@ -315,8 +315,8 @@ app.get('/favicon.ico', (c) => c.body(FAVICON_SVG, 200, { 'content-type': 'image
 // Badges SVG para READMEs: /badge/{npm|pypi|crates}/{name}/{version|maintained|status}.svg
 app.get('/badge/*', async (c) => {
   const rest = c.req.path.slice('/badge/'.length);
-  const m = /^(npm|pypi|crates)\/(.+)\/(version|maintained|status)\.svg$/.exec(decodeURIComponent(rest));
-  if (!m) return c.text('Usage: /badge/{npm|pypi|crates}/{name}/{version|maintained|status}.svg', 400);
+  const m = /^(npm|pypi|crates|packagist)\/(.+)\/(version|maintained|status)\.svg$/.exec(decodeURIComponent(rest));
+  if (!m) return c.text('Usage: /badge/{npm|pypi|crates|packagist}/{name}/{version|maintained|status}.svg', 400);
   const eco = m[1] as Ecosystem;
   const type = m[3] as BadgeType;
   const name = canonicalName(eco, m[2]!);
@@ -492,8 +492,16 @@ function registerPages(L: Locale): void {
     c.html(body, status, { 'cache-control': CACHE_SHORT, 'content-language': L.lang });
 
   const home = async (c: Context) => {
-    const [npmTop, pypiTop, cratesTop] = await Promise.all([browse('npm', 0, 40), browse('pypi', 0, 40), browse('crates', 0, 40)]);
-    return html(c, homeHtml(L, await stats(), { npm: npmTop.items.map((x) => x.name), pypi: pypiTop.items.map((x) => x.name), crates: cratesTop.items.map((x) => x.name) }));
+    const [npmTop, pypiTop, cratesTop, packagistTop] = await Promise.all([browse('npm', 0, 40), browse('pypi', 0, 40), browse('crates', 0, 40), browse('packagist', 0, 40)]);
+    return html(
+      c,
+      homeHtml(L, await stats(), {
+        npm: npmTop.items.map((x) => x.name),
+        pypi: pypiTop.items.map((x) => x.name),
+        crates: cratesTop.items.map((x) => x.name),
+        packagist: packagistTop.items.map((x) => x.name),
+      }),
+    );
   };
   if (p) {
     app.get(p, (c) => c.redirect(`${p}/`, 301));
@@ -546,7 +554,7 @@ function registerPages(L: Locale): void {
   });
 
   // Páginas índice por popularidad: dan enlaces internos a cada paquete (antes sólo existían en el sitemap).
-  for (const eco of ['npm', 'pypi', 'crates'] as const) {
+  for (const eco of ['npm', 'pypi', 'crates', 'packagist'] as const) {
     app.get(`${p}/${eco}`, async (c) => {
       const page = Math.max(1, Math.floor(Number(c.req.query('page') ?? 1)) || 1);
       const data = await browse(eco, (page - 1) * BROWSE_PAGE_SIZE, BROWSE_PAGE_SIZE);
@@ -585,7 +593,7 @@ function registerPages(L: Locale): void {
     return html(c, modelPage(L, view, siblings));
   });
 
-  for (const eco of ['npm', 'pypi', 'crates'] as const) {
+  for (const eco of ['npm', 'pypi', 'crates', 'packagist'] as const) {
     app.get(`${p}/${eco}/*`, async (c) => {
       let raw = decodeURIComponent(c.req.path.slice(`${p}/${eco}/`.length));
       const md = raw.endsWith('.md'); // sólo por sufijo: así la caché del proxy no mezcla HTML y Markdown

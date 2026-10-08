@@ -33,4 +33,7 @@ export const ja5: Messages5 = {
   'stat.crates': '追跡中の Rust クレート',
   'pkg.requiresRust': '必要な Rust の最小バージョン (rust-version)',
   'docs.src.crates': 'crates.io：crates.io API（公開日、yanked 状態、必要な Rust の最小バージョン付きの全バージョン）。脆弱性情報は OSV。',
+  'stat.packagist': '追跡中の PHP パッケージ (Packagist)',
+  'pkg.requiresPhp': '必要な PHP バージョン (composer.json)',
+  'docs.src.packagist': 'Packagist：repo.packagist.org の静的な Composer v2 メタデータ（各バージョンの require.php 制約と放棄フラグ）。脆弱性情報は OSV。',
 };

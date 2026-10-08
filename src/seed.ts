@@ -37,6 +37,20 @@ async function seedCrates(): Promise<void> {
   console.log(`seed crates: ${n} paquetes`);
 }
 
+/** Paquetes más descargados de Packagist (100 por página). */
+async function seedPackagist(): Promise<void> {
+  const names: string[] = [];
+  for (let page = 1; names.length < config.seedPackagistLimit && page <= 60; page++) {
+    const r = await httpGet(`https://packagist.org/explore/popular.json?per_page=100&page=${page}`, { timeoutMs: 30_000 });
+    if (r.status !== 200) throw new Error(`status ${r.status}`);
+    const rows: Array<{ name: string }> = JSON.parse(r.body).packages ?? [];
+    if (rows.length === 0) break;
+    names.push(...rows.map((x) => x.name));
+  }
+  const n = await insertPackages('packagist', names.slice(0, config.seedPackagistLimit));
+  console.log(`seed packagist: ${n} paquetes`);
+}
+
 /** Idempotente: se ejecuta en cada arranque del worker y respeta los límites configurados. */
 export async function seed(): Promise<void> {
   await pool.query(
@@ -47,6 +61,7 @@ export async function seed(): Promise<void> {
   );
   // En segundo plano: respeta el ritmo de crates.io y no demora el arranque del worker.
   void seedCrates().catch((err) => console.error('seed crates falló (se reintenta en el próximo arranque):', err));
+  void seedPackagist().catch((err) => console.error('seed packagist falló (se reintenta en el próximo arranque):', err));
   const npm = await insertPackages('npm', npmTopDownloads.slice(0, config.seedNpmLimit));
   console.log(`seed npm: ${npm} paquetes`);
   try {

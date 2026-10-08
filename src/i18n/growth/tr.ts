@@ -33,4 +33,7 @@ export const tr5: Messages5 = {
   'stat.crates': 'Takip edilen Rust crate\'leri',
   'pkg.requiresRust': 'Asgari Rust sürümü (rust-version)',
   'docs.src.crates': 'crates.io: crates.io API\'si (yayın tarihi, yanked durumu ve asgari Rust sürümüyle tüm sürümler); güvenlik uyarıları OSV\'den.',
+  'stat.packagist': 'Takip edilen PHP paketleri (Packagist)',
+  'pkg.requiresPhp': 'Gereken PHP sürümü (composer.json)',
+  'docs.src.packagist': 'Packagist: repo.packagist.org\'daki statik Composer v2 üstverisi (her sürüm, require.php kısıtı ve terk edilmiş işaretiyle); güvenlik uyarıları OSV\'den.',
 };

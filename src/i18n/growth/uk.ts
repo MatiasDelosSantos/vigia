@@ -33,4 +33,7 @@ export const uk5: Messages5 = {
   'stat.crates': 'Відстежувані крейти Rust',
   'pkg.requiresRust': 'Мінімальна версія Rust (rust-version)',
   'docs.src.crates': 'crates.io: API crates.io (усі версії з датою публікації, статусом yanked і мінімальною версією Rust); сповіщення про вразливості з OSV.',
+  'stat.packagist': 'Відстежувані пакети PHP (Packagist)',
+  'pkg.requiresPhp': 'Потрібна версія PHP (composer.json)',
+  'docs.src.packagist': 'Packagist: статичні метадані Composer v2 з repo.packagist.org (кожна версія з обмеженням require.php і позначкою «занедбаний»); сповіщення про вразливості з OSV.',
 };

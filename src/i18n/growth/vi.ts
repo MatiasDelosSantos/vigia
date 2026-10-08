@@ -33,4 +33,7 @@ export const vi5: Messages5 = {
   'stat.crates': 'Crate Rust được theo dõi',
   'pkg.requiresRust': 'Phiên bản Rust tối thiểu (rust-version)',
   'docs.src.crates': 'crates.io: API crates.io (mọi phiên bản kèm ngày phát hành, trạng thái yanked và phiên bản Rust tối thiểu); cảnh báo bảo mật từ OSV.',
+  'stat.packagist': 'Gói PHP được theo dõi (Packagist)',
+  'pkg.requiresPhp': 'Phiên bản PHP yêu cầu (composer.json)',
+  'docs.src.packagist': 'Packagist: siêu dữ liệu Composer v2 tĩnh từ repo.packagist.org (mỗi phiên bản kèm ràng buộc require.php và cờ bị bỏ rơi); cảnh báo bảo mật từ OSV.',
 };

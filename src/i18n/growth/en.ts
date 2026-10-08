@@ -32,6 +32,9 @@ export const en5 = {
   'stat.crates': 'Rust crates tracked',
   'pkg.requiresRust': 'Minimum Rust version (rust-version)',
   'docs.src.crates': 'crates.io: crates.io API (all versions with publish date, yanked status and minimum Rust version); advisories from OSV.',
+  'stat.packagist': 'PHP packages tracked (Packagist)',
+  'pkg.requiresPhp': 'Required PHP version (composer.json)',
+  'docs.src.packagist': 'Packagist: static Composer v2 metadata from repo.packagist.org (every version with its require.php constraint and abandoned flag); advisories from OSV.',
 } as const;
 
 export type Message5Key = keyof typeof en5;

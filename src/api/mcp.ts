@@ -22,7 +22,7 @@ async function waitForAnalysis<T extends { status: string }>(fn: () => Promise<T
 
 const json = (o: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(o) }] });
 const fail = (msg: string) => ({ content: [{ type: 'text' as const, text: msg }], isError: true });
-const ecosystem = z.enum(['npm', 'pypi', 'crates']).describe('Package ecosystem (crates = Rust, crates.io)');
+const ecosystem = z.enum(['npm', 'pypi', 'crates', 'packagist']).describe('Package ecosystem (crates = Rust/crates.io, packagist = PHP/Composer, names like "laravel/framework")');
 const manifestEcosystem = z.enum(['npm', 'pypi']).describe('Manifest type: npm = package.json, pypi = requirements.txt');
 
 function buildServer(): McpServer {
@@ -39,7 +39,7 @@ function buildServer(): McpServer {
     {
       title: 'Package status',
       description:
-        'Latest stable version, publish date, deprecation/yank status, runtime requirements (engines/python/rust-version), peer dependencies, license and advisories of an npm, PyPI or Rust (crates.io) package. Use before recommending, installing or pinning a package version.',
+        'Latest stable version, publish date, deprecation/yank status, runtime requirements (engines/python/rust-version/php), peer dependencies, license and advisories of an npm, PyPI, Rust (crates.io) or PHP (Packagist) package. Use before recommending, installing or pinning a package version.',
       inputSchema: { ecosystem, name: z.string().min(1).max(214).describe('Exact package name, e.g. "next", "@types/node", "requests"') },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -119,7 +119,7 @@ function buildServer(): McpServer {
       inputSchema: {
         ecosystem,
         name: z.string().min(1).max(214).describe('Package name'),
-        with: z.string().min(3).max(200).describe('Comma-separated constraints: "node@18,react@18" (npm), "python@3.8" (pypi) or "rust@1.70" (crates)'),
+        with: z.string().min(3).max(200).describe('Comma-separated constraints: "node@18,react@18" (npm), "python@3.8" (pypi), "rust@1.70" (crates) or "php@8.1" (packagist)'),
       },
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
@@ -183,7 +183,7 @@ function buildServer(): McpServer {
       title: 'Recent changes',
       description: 'Latest detected changes: new releases, deprecations, removed packages, AI model price changes or retirement announcements. Optionally filtered to one package or model.',
       inputSchema: {
-        ecosystem: z.enum(['npm', 'pypi', 'crates', 'ai']).optional(),
+        ecosystem: z.enum(['npm', 'pypi', 'crates', 'packagist', 'ai']).optional(),
         name: z.string().max(214).optional().describe('If set, history of that package or model'),
         limit: z.number().int().min(1).max(50).default(20),
       },
@@ -232,7 +232,7 @@ function buildServer(): McpServer {
     {
       title: 'Find package',
       description: 'Finds packages or models by name prefix, ordered by popularity. Use when the exact name is unknown.',
-      inputSchema: { query: z.string().min(1).max(100), ecosystem: z.enum(['npm', 'pypi', 'crates', 'ai']).optional() },
+      inputSchema: { query: z.string().min(1).max(100), ecosystem: z.enum(['npm', 'pypi', 'crates', 'packagist', 'ai']).optional() },
       annotations: { readOnlyHint: true },
     },
     async ({ query, ecosystem: eco }) => json(await search(query, eco, 15)),

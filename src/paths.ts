@@ -8,7 +8,8 @@ export type PackageSuffix = '' | 'history' | 'versions' | 'version' | 'upgrade' 
 export function splitPackagePath(rest: string): { eco: string; name: string; suffix: PackageSuffix; version?: string; symbol?: string } {
   const parts = rest.split('/').filter(Boolean).map(decodeURIComponent);
   const eco = parts.shift() ?? '';
-  const complete = (p: string[]) => p.length > 0 && !(p.length === 1 && p[0]!.startsWith('@'));
+  // Los nombres de Packagist son siempre vendor/paquete; los de npm con scope, @scope/paquete.
+  const complete = (p: string[]) => p.length > 0 && !(p.length === 1 && (p[0]!.startsWith('@') || eco === 'packagist'));
   const last = parts.at(-1);
   if ((last === 'history' || last === 'versions' || last === 'upgrade' || last === 'compatible') && complete(parts.slice(0, -1))) {
     return { eco, name: parts.slice(0, -1).join('/'), suffix: last };

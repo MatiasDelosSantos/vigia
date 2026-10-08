@@ -33,4 +33,7 @@ export const hi5: Messages5 = {
   'stat.crates': 'ट्रैक किए गए Rust क्रेट',
   'pkg.requiresRust': 'न्यूनतम Rust वर्ज़न (rust-version)',
   'docs.src.crates': 'crates.io: crates.io API (प्रकाशन तिथि, yanked स्थिति और न्यूनतम Rust वर्ज़न के साथ सभी वर्ज़न); सुरक्षा सूचनाएँ OSV से।',
+  'stat.packagist': 'ट्रैक किए गए PHP पैकेज (Packagist)',
+  'pkg.requiresPhp': 'आवश्यक PHP वर्ज़न (composer.json)',
+  'docs.src.packagist': 'Packagist: repo.packagist.org से स्थिर Composer v2 मेटाडेटा (हर वर्ज़न अपनी require.php शर्त और परित्यक्त फ़्लैग के साथ); सुरक्षा सूचनाएँ OSV से।',
 };

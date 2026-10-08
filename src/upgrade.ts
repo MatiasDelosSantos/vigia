@@ -195,9 +195,11 @@ export function checkVersion(eco: Ecosystem, v: VersionConstraints, constraints:
           ? c.name === 'rust' && v.engines?.rust
             ? `>=${v.engines.rust}`
             : null
-          : c.name === 'node'
-            ? v.engines?.node ?? null
-            : v.peer?.[c.name] ?? null;
+          : eco === 'packagist' && c.name === 'php'
+            ? v.engines?.php ?? null
+            : c.name === 'node'
+              ? v.engines?.node ?? null
+              : v.peer?.[c.name] ?? null;
     return { constraint: `${c.name}@${c.version}`, range, ok: satisfiesTarget(eco, range, c.version) };
   });
 }

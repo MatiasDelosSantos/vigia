@@ -33,4 +33,7 @@ export const ar5: Messages5 = {
   'stat.crates': 'حزم Rust المتتبَّعة (crates)',
   'pkg.requiresRust': 'الحد الأدنى لإصدار Rust (rust-version)',
   'docs.src.crates': 'crates.io: واجهة crates.io (جميع الإصدارات مع تاريخ النشر وحالة yanked والحد الأدنى لإصدار Rust)؛ التنبيهات الأمنية من OSV.',
+  'stat.packagist': 'حزم PHP المتتبَّعة (Packagist)',
+  'pkg.requiresPhp': 'إصدار PHP المطلوب (composer.json)',
+  'docs.src.packagist': 'Packagist: بيانات Composer v2 الثابتة من repo.packagist.org (كل إصدار مع قيد require.php وعلامة الإهمال)؛ التنبيهات الأمنية من OSV.',
 };

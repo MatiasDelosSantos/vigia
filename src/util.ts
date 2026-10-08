@@ -14,10 +14,10 @@ export function sha256(data: string | Buffer): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
-export type Ecosystem = 'npm' | 'pypi' | 'crates';
+export type Ecosystem = 'npm' | 'pypi' | 'crates' | 'packagist';
 
 export function isEcosystem(v: string): v is Ecosystem {
-  return v === 'npm' || v === 'pypi' || v === 'crates';
+  return v === 'npm' || v === 'pypi' || v === 'crates' || v === 'packagist';
 }
 
 /** PEP 503: minúsculas y cualquier secuencia de "-", "_" o "." se reduce a "-". */
@@ -28,12 +28,13 @@ export function normalizePypiName(name: string): string {
 const NPM_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 const PYPI_NAME = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const CRATES_NAME = /^[a-z0-9][a-z0-9_-]*$/;
+const PACKAGIST_NAME = /^[a-z0-9](?:[_.-]?[a-z0-9]+)*\/[a-z0-9](?:(?:[_.]|-{1,2})?[a-z0-9]+)*$/;
 
 /** Devuelve el nombre canónico o null si no es un nombre válido del ecosistema. */
 export function canonicalName(eco: Ecosystem, raw: string): string | null {
   const name = eco === 'pypi' ? normalizePypiName(raw) : raw.trim().toLowerCase();
   if (name.length === 0 || name.length > (eco === 'crates' ? 64 : 214)) return null;
-  return (eco === 'npm' ? NPM_NAME : eco === 'crates' ? CRATES_NAME : PYPI_NAME).test(name) ? name : null;
+  return (eco === 'npm' ? NPM_NAME : eco === 'crates' ? CRATES_NAME : eco === 'packagist' ? PACKAGIST_NAME : PYPI_NAME).test(name) ? name : null;
 }
 
 export function entityKey(eco: string, name: string): string {

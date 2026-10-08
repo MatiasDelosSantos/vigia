@@ -33,4 +33,7 @@ export const nl5: Messages5 = {
   'stat.crates': 'Gevolgde Rust-crates',
   'pkg.requiresRust': 'Minimale Rust-versie (rust-version)',
   'docs.src.crates': 'crates.io: crates.io-API (alle versies met publicatiedatum, yanked-status en minimale Rust-versie); beveiligingsmeldingen van OSV.',
+  'stat.packagist': 'Gevolgde PHP-pakketten (Packagist)',
+  'pkg.requiresPhp': 'Vereiste PHP-versie (composer.json)',
+  'docs.src.packagist': 'Packagist: statische Composer v2-metadata van repo.packagist.org (elke versie met de require.php-beperking en abandoned-vlag); beveiligingsmeldingen van OSV.',
 };

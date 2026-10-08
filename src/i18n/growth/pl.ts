@@ -33,4 +33,7 @@ export const pl5: Messages5 = {
   'stat.crates': 'Śledzone crate\'y Rusta',
   'pkg.requiresRust': 'Minimalna wersja Rusta (rust-version)',
   'docs.src.crates': 'crates.io: API crates.io (wszystkie wersje z datą publikacji, statusem „yanked” i minimalną wersją Rusta); ostrzeżenia z OSV.',
+  'stat.packagist': 'Śledzone pakiety PHP (Packagist)',
+  'pkg.requiresPhp': 'Wymagana wersja PHP (composer.json)',
+  'docs.src.packagist': 'Packagist: statyczne metadane Composer v2 z repo.packagist.org (każda wersja z ograniczeniem require.php i flagą porzucenia); ostrzeżenia z OSV.',
 };
