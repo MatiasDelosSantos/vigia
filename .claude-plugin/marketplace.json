@@ -1,0 +1,14 @@
+{
+  "name": "vigia",
+  "owner": { "name": "Matias de los Santos", "url": "https://github.com/MatiasDelosSantos" },
+  "metadata": { "description": "Vigia: version-accurate package facts for coding agents." },
+  "plugins": [
+    {
+      "name": "vigia",
+      "source": "./",
+      "description": "MCP server and skill: what breaks between package versions, API existence per version, compatible versions and vulnerabilities (npm, PyPI), AI model prices.",
+      "category": "development",
+      "homepage": "https://vigia.coredls.cloud"
+    }
+  ]
+}

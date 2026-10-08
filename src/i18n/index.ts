@@ -70,6 +70,24 @@ import { vi4 } from './upgrade/vi.js';
 import { ja4 } from './upgrade/ja.js';
 import { ko4 } from './upgrade/ko.js';
 import { zh4 } from './upgrade/zh.js';
+import { en5, type Message5Key, type Messages5 } from './growth/en.js';
+import { es5 } from './growth/es.js';
+import { pt5 } from './growth/pt.js';
+import { fr5 } from './growth/fr.js';
+import { de5 } from './growth/de.js';
+import { it5 } from './growth/it.js';
+import { nl5 } from './growth/nl.js';
+import { pl5 } from './growth/pl.js';
+import { ru5 } from './growth/ru.js';
+import { uk5 } from './growth/uk.js';
+import { tr5 } from './growth/tr.js';
+import { ar5 } from './growth/ar.js';
+import { hi5 } from './growth/hi.js';
+import { id5 } from './growth/id.js';
+import { vi5 } from './growth/vi.js';
+import { ja5 } from './growth/ja.js';
+import { ko5 } from './growth/ko.js';
+import { zh5 } from './growth/zh.js';
 
 export interface Locale {
   /** Segmento de URL ('' para inglés, que vive en la raíz y es el canónico x-default). */
@@ -81,28 +99,28 @@ export interface Locale {
   dir: 'ltr' | 'rtl';
   /** Prefijo de ruta: '' o '/es'. */
   prefix: string;
-  m: Messages & Messages2 & Messages3 & Messages4;
+  m: Messages & Messages2 & Messages3 & Messages4 & Messages5;
 }
 
-const defs: Array<[code: string, lang: string, name: string, m: Messages & Messages2 & Messages3 & Messages4, dir?: 'rtl']> = [
-  ['en', 'en', 'English', { ...en, ...en2, ...en3, ...en4 }],
-  ['es', 'es', 'Español', { ...es, ...es2, ...es3, ...es4 }],
-  ['pt', 'pt', 'Português', { ...pt, ...pt2, ...pt3, ...pt4 }],
-  ['fr', 'fr', 'Français', { ...fr, ...fr2, ...fr3, ...fr4 }],
-  ['de', 'de', 'Deutsch', { ...de, ...de2, ...de3, ...de4 }],
-  ['it', 'it', 'Italiano', { ...it, ...it2, ...it3, ...it4 }],
-  ['nl', 'nl', 'Nederlands', { ...nl, ...nl2, ...nl3, ...nl4 }],
-  ['pl', 'pl', 'Polski', { ...pl, ...pl2, ...pl3, ...pl4 }],
-  ['ru', 'ru', 'Русский', { ...ru, ...ru2, ...ru3, ...ru4 }],
-  ['uk', 'uk', 'Українська', { ...uk, ...uk2, ...uk3, ...uk4 }],
-  ['tr', 'tr', 'Türkçe', { ...tr, ...tr2, ...tr3, ...tr4 }],
-  ['ar', 'ar', 'العربية', { ...ar, ...ar2, ...ar3, ...ar4 }, 'rtl'],
-  ['hi', 'hi', 'हिन्दी', { ...hi, ...hi2, ...hi3, ...hi4 }],
-  ['id', 'id', 'Bahasa Indonesia', { ...id, ...id2, ...id3, ...id4 }],
-  ['vi', 'vi', 'Tiếng Việt', { ...vi, ...vi2, ...vi3, ...vi4 }],
-  ['ja', 'ja', '日本語', { ...ja, ...ja2, ...ja3, ...ja4 }],
-  ['ko', 'ko', '한국어', { ...ko, ...ko2, ...ko3, ...ko4 }],
-  ['zh', 'zh-Hans', '简体中文', { ...zh, ...zh2, ...zh3, ...zh4 }],
+const defs: Array<[code: string, lang: string, name: string, m: Messages & Messages2 & Messages3 & Messages4 & Messages5, dir?: 'rtl']> = [
+  ['en', 'en', 'English', { ...en, ...en2, ...en3, ...en4, ...en5 }],
+  ['es', 'es', 'Español', { ...es, ...es2, ...es3, ...es4, ...es5 }],
+  ['pt', 'pt', 'Português', { ...pt, ...pt2, ...pt3, ...pt4, ...pt5 }],
+  ['fr', 'fr', 'Français', { ...fr, ...fr2, ...fr3, ...fr4, ...fr5 }],
+  ['de', 'de', 'Deutsch', { ...de, ...de2, ...de3, ...de4, ...de5 }],
+  ['it', 'it', 'Italiano', { ...it, ...it2, ...it3, ...it4, ...it5 }],
+  ['nl', 'nl', 'Nederlands', { ...nl, ...nl2, ...nl3, ...nl4, ...nl5 }],
+  ['pl', 'pl', 'Polski', { ...pl, ...pl2, ...pl3, ...pl4, ...pl5 }],
+  ['ru', 'ru', 'Русский', { ...ru, ...ru2, ...ru3, ...ru4, ...ru5 }],
+  ['uk', 'uk', 'Українська', { ...uk, ...uk2, ...uk3, ...uk4, ...uk5 }],
+  ['tr', 'tr', 'Türkçe', { ...tr, ...tr2, ...tr3, ...tr4, ...tr5 }],
+  ['ar', 'ar', 'العربية', { ...ar, ...ar2, ...ar3, ...ar4, ...ar5 }, 'rtl'],
+  ['hi', 'hi', 'हिन्दी', { ...hi, ...hi2, ...hi3, ...hi4, ...hi5 }],
+  ['id', 'id', 'Bahasa Indonesia', { ...id, ...id2, ...id3, ...id4, ...id5 }],
+  ['vi', 'vi', 'Tiếng Việt', { ...vi, ...vi2, ...vi3, ...vi4, ...vi5 }],
+  ['ja', 'ja', '日本語', { ...ja, ...ja2, ...ja3, ...ja4, ...ja5 }],
+  ['ko', 'ko', '한국어', { ...ko, ...ko2, ...ko3, ...ko4, ...ko5 }],
+  ['zh', 'zh-Hans', '简体中文', { ...zh, ...zh2, ...zh3, ...zh4, ...zh5 }],
 ];
 
 export const LOCALES: Locale[] = defs.map(([code, lang, name, m, dir]) => ({
@@ -118,10 +136,10 @@ export const DEFAULT_LOCALE = LOCALES[0]!;
 
 /** Traduce una clave e interpola {variables}. Los valores NO se escapan: escapar al insertar en HTML. */
 export function t(L: Locale, key: AnyKey, vars: Record<string, string | number> = {}): string {
-  const base: Record<string, string> = { ...en, ...en2, ...en3, ...en4 };
+  const base: Record<string, string> = { ...en, ...en2, ...en3, ...en4, ...en5 };
   const s = (L.m as Record<string, string>)[key] ?? base[key] ?? String(key);
   return s.replace(/\{(\w+)\}/g, (_, k: string) => (k in vars ? String(vars[k]) : `{${k}}`));
 }
 
-export type AnyKey = MessageKey | Message2Key | Message3Key | Message4Key;
+export type AnyKey = MessageKey | Message2Key | Message3Key | Message4Key | Message5Key;
 export type { MessageKey, Message2Key };

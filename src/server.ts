@@ -13,8 +13,9 @@ import { splitPackagePath } from './paths.js';
 import { availableGuides, compatibilityTable, compatibleVersion, guidesFor, symbolStatus, upgradeReport } from './intel.js';
 import { parseConstraints } from './upgrade.js';
 import { openapi } from './api/openapi.js';
-import { upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
-import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, modelHtml, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
+import { modelPage, modelsIndexPage, providerPage, upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
+import { readFileSync } from 'node:fs';
+import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
 import { recentVersions } from './versions.js';
 import semver from 'semver';
 import { atom, describeChange, majorReleases, recentChangeRows } from './feeds.js';
@@ -28,6 +29,14 @@ const app = new Hono();
 // Cache en el proxy/CDN: los hechos cambian por evento, un TTL corto con stale-while-revalidate alcanza.
 const CACHE_SHORT = 'public, max-age=60, stale-while-revalidate=600';
 const CACHE_LONG = 'public, max-age=3600, stale-while-revalidate=86400';
+/** Skill para agentes (también publicada en el repo como plugin de Claude Code). */
+const SKILL_MD = (() => {
+  try {
+    return readFileSync(new URL('../skills/vigia/SKILL.md', import.meta.url), 'utf8');
+  } catch {
+    return '# Vigia\n\nhttps://github.com/MatiasDelosSantos/vigia/blob/master/skills/vigia/SKILL.md\n';
+  }
+})();
 
 app.use('*', async (c, next) => {
   const t0 = performance.now();
@@ -298,6 +307,7 @@ app.get('/openapi.json', (c) => {
   return c.json(openapi());
 });
 
+app.get('/skill.md', (c) => c.text(SKILL_MD, 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_LONG }));
 app.get('/llms.txt', (c) => c.text(llmsTxt(), 200, { 'cache-control': CACHE_LONG }));
 
 app.get('/favicon.svg', (c) => c.body(FAVICON_SVG, 200, { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=604800' }));
@@ -463,7 +473,10 @@ app.get('/sitemaps/:file', async (c) => {
   );
   const guides = await availableGuides(5000);
   const guidePaths = guides.filter((g) => L.code === 'en' || guides.indexOf(g) < 300).map((g) => `/upgrade/npm/${g.name}/${g.from}-to-${g.to}`);
-  const urls = ['/', '/check', '/upgrade', ...(L.code === 'en' ? ['/weekly'] : []), '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths]
+  const models = await listModels({ limit: 2000 });
+  const providerPaths = [...new Set(models.map((m: any) => m.provider).filter(Boolean))].map((x) => `/models/${x}`);
+  const modelPaths = L.code === 'en' ? models.map((m: any) => `/models/${m.id}`) : [];
+  const urls = ['/', '/check', '/upgrade', ...(L.code === 'en' ? ['/weekly'] : []), '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths, ...providerPaths, ...modelPaths]
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
     .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {
@@ -555,23 +568,21 @@ function registerPages(L: Locale): void {
     return html(c, listPage(L, t(L, 'list.changesTitle'), t(L, 'list.changesIntro'), '/changes', items));
   });
 
-  app.get(`${p}/models`, async (c) => {
-    const models = await listModels({ limit: 1000 });
-    const items = `<div class="card"><table><tr><th>${esc(t(L, 'list.colModel'))}</th><th>${esc(t(L, 'list.colPrice'))}</th><th>${esc(t(L, 'list.colContext'))}</th></tr>${models
-      .map((m: any) => {
-        const pr = m.pricing ?? {};
-        const retiring = m.expiration_date ? ` <span class="badge retiring">${esc(t(L, 'list.retiring', { date: m.expiration_date }))}</span>` : '';
-        return `<tr><td><a href="${p}/models/${esc(m.id)}" dir="ltr">${esc(m.id)}</a>${retiring}</td><td dir="ltr">${pr.variable ? esc(t(L, 'model.variable')) : `${esc(pr.input ?? '—')} / ${esc(pr.output ?? '—')}`}</td><td>${esc(m.context_length ?? '—')}</td></tr>`;
-      })
-      .join('')}</table></div>`;
-    return html(c, listPage(L, t(L, 'list.modelsTitle'), t(L, 'list.modelsIntro'), '/models', items));
-  });
-
+  app.get(`${p}/models`, async (c) => html(c, modelsIndexPage(L, await listModels({ limit: 1000 }))));
   app.get(`${p}/models/*`, async (c) => {
     const id = decodeURIComponent(c.req.path.slice(`${p}/models/`.length));
+    // Sin "/": es un proveedor (los ids de modelo siempre son "proveedor/modelo").
+    if (!id.includes('/')) {
+      const models = /^[a-z0-9][a-z0-9._-]{0,63}$/.test(id) ? await listModels({ provider: id, limit: 500 }) : [];
+      if (!models.length) return html(c, listPage(L, t(L, 'err.modelNotFound'), t(L, 'err.modelNotFoundText'), `/models/${id}`, ''), 404);
+      return html(c, providerPage(L, id, models));
+    }
     const e = await getEntity(pool, `model:${id}`);
     if (!e) return html(c, listPage(L, t(L, 'err.modelNotFound'), t(L, 'err.modelNotFoundText'), `/models/${id}`, ''), 404);
-    return html(c, modelHtml(L, await modelView(e)));
+    const view = await modelView(e);
+    const provider = (view.data as any).provider as string | null;
+    const siblings = provider ? await listModels({ provider, limit: 200 }) : [];
+    return html(c, modelPage(L, view, siblings));
   });
 
   for (const eco of ['npm', 'pypi'] as const) {

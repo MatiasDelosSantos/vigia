@@ -30,6 +30,7 @@ ul{padding-inline-start:20px}ul.changes{font-size:14px}footer{margin-top:48px;fo
 .langs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px}.langs a[aria-current]{font-weight:700;color:var(--fg);text-decoration:none}
 .crumbs{font-size:13px;color:var(--muted);margin:0 0 10px}.crumbs a{color:var(--muted)}.crumbs span[aria-hidden]{margin:0 6px}
 details.faq{border-bottom:1px solid var(--line);padding:10px 0}details.faq summary{cursor:pointer;font-weight:600}details.faq p{margin:8px 0 0}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.btn{display:inline-block;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--bg);text-decoration:none;font-weight:600;font-size:14px}.btn.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
 .grid{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0;list-style:none}.pager{display:flex;gap:16px;align-items:center;margin:16px 0}
 `;
 
@@ -128,6 +129,7 @@ export function packageHtml(L: Locale, view: any, history: any[], extras: Packag
   const advisories: string[] = d.advisories_on_latest ?? [];
   const path = pkgPath(d);
   const bc = crumbs(L, [[ecoLabel, `/${eco}`], [d.name, null]]);
+  const installCmd = eco === 'npm' ? `npm install ${d.name}@latest` : `pip install --upgrade ${d.name}`;
 
   // Preguntas frecuentes: respuestas cortas, fechadas y verificables (lo que los buscadores de IA citan).
   const faq: Array<[string, string]> = [];
@@ -136,6 +138,9 @@ export function packageHtml(L: Locale, view: any, history: any[], extras: Packag
       t(L, 'faq.latestQ', { name: d.name }),
       t(L, 'faq.latestA', { name: d.name, version: latest.version, date: dateOnly(latest.published_at), verified: dateOnly(m.last_verified_at) }),
     ]);
+  }
+  if (latest.version) {
+    faq.push([t(L, 'faq.installQ', { name: d.name }), t(L, 'faq.installA', { cmd: installCmd, version: latest.version, verified: dateOnly(m.last_verified_at) })]);
   }
   faq.push([
     t(L, 'faq.deprecatedQ', { name: d.name }),
@@ -175,6 +180,7 @@ ${d.description ? `<p dir="auto" lang="und">${esc(d.description)}</p>` : ''}
 <div class="card"><table>
 ${row(t(L, 'pkg.latest'), `<strong dir="ltr">${esc(latest.version ?? '—')}</strong>`)}
 ${row(t(L, 'pkg.published'), fmtDate(latest.published_at))}
+${row(t(L, 'pkg.install'), `<code dir="ltr">${esc(installCmd)}</code>`)}
 ${d.deprecation ? row(t(L, 'pkg.deprecation'), `<span dir="auto" lang="und">${esc(d.deprecation.message)}</span>`) : ''}
 ${row(eco === 'npm' ? t(L, 'pkg.requiresEngines') : t(L, 'pkg.requires'), reqs)}
 ${eco === 'npm' ? row(t(L, 'pkg.peers'), peers) : ''}
@@ -207,6 +213,8 @@ ${
 }
 
 ${packageIntelSections(L, eco, d.entity.slice(eco.length + 1), extras.compat ?? [], extras.guides ?? [])}
+
+${agentSection(L)}
 
 <h2>${esc(t(L, 'faq.title'))}</h2>
 ${faq.map(([q, a]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}
@@ -285,33 +293,6 @@ export function packageMarkdown(view: any): string {
     .join('\n');
 }
 
-export function modelHtml(L: Locale, view: any): string {
-  const d = view.data;
-  const p = d.pricing ?? {};
-  const price = (n: number | null) => (n === null || n === undefined ? '—' : `US$ ${n}`);
-  const variable = esc(t(L, 'model.variable'));
-  const body = `
-<p class="muted">${esc(t(L, 'model.kind'))} · ${esc(d.provider)}</p>
-<h1><span dir="ltr">${esc(d.name)}</span> <span class="badge ${esc(d.status)}">${statusLabel(L, d.status)}</span></h1>
-<p><code>${esc(d.id)}</code></p>
-<div class="card"><table>
-${row(t(L, 'model.input'), p.variable ? variable : `<span dir="ltr">${esc(price(p.input))}</span>`)}
-${row(t(L, 'model.output'), p.variable ? variable : `<span dir="ltr">${esc(price(p.output))}</span>`)}
-${row(t(L, 'model.context'), esc(d.context_length ?? '—'))}
-${row(t(L, 'model.maxOut'), esc(d.max_output_tokens ?? '—'))}
-${row(t(L, 'model.retirement'), d.expiration_date ? `<strong dir="ltr">${esc(d.expiration_date)}</strong>` : esc(t(L, 'model.none')))}
-${row(t(L, 'model.cutoff'), esc(d.knowledge_cutoff ?? '—'))}
-${row(t(L, 'pkg.lastVerified'), fmtDate(view.meta.last_verified_at))}
-</table></div>
-<p class="muted">${esc(t(L, 'model.note'))}</p>`;
-  return layout(L, {
-    title: `${d.name} — ${t(L, 'model.titleSuffix')}`,
-    description: t(L, 'model.metaDesc', { id: d.id }),
-    path: `/models/${d.id}`,
-    body,
-  });
-}
-
 export function listPage(L: Locale, title: string, intro: string, path: string, items: string): string {
   return layout(L, { title: `${title} — Vigia`, description: intro, path, body: `<h1>${esc(title)}</h1><p class="muted">${esc(intro)}</p>${items}` });
 }
@@ -336,8 +317,7 @@ ${popularLists(L, popular)}
 curl ${u}/v1/packages/pypi/requests
 curl -X POST ${u}/v1/check -H 'content-type: application/json' \\
   -d '{"ecosystem":"npm","dependencies":{"react":"^17.0.0"}}'</pre>
-<h2>${esc(t(L, 'home.connect'))}</h2>
-<pre>claude mcp add --transport http vigia ${u}/mcp</pre>
+${agentSection(L)}
 <p>${esc(t(L, 'home.listed', { name: 'cloud.coredls.vigia/vigia' }))} <a href="${L.prefix}/docs">${esc(t(L, 'home.moreDocs'))}</a></p>`;
   return layout(L, {
     title: t(L, 'home.title'),
@@ -445,6 +425,7 @@ export function llmsTxt(): string {
 
 ## MCP
 - [MCP server](${u}/mcp): streamable HTTP, no auth, registry name cloud.coredls.vigia/vigia
+- [Agent skill](${u}/skill.md): SKILL.md that tells a coding agent when to call Vigia (also a Claude Code plugin: /plugin marketplace add MatiasDelosSantos/vigia)
 
 ## Documentation in other languages
 ${LOCALES.filter((L) => L.prefix)
@@ -759,6 +740,7 @@ export function upgradeHtml(
 <p>${esc(t(L, 'up.intro', { name, from: d.from, to: d.to }))}</p>
 <h2>${esc(t(L, 'up.summary'))}</h2>${summary}
 ${sections.join('\n')}
+${agentSection(L)}
 <h2>${esc(t(L, 'faq.title'))}</h2>
 ${faq.map(([q, ans]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(ans)}</p></details>`).join('')}
 <h2>${esc(t(L, 'pkg.forAgents'))}</h2>
@@ -851,4 +833,152 @@ export function weeklyHtml(data: {
     singleLanguage: true,
     ld: [{ '@type': 'CollectionPage', name: 'This week in package upgrades', dateModified: data.to, url: `${config.publicUrl}/weekly` }],
   });
+}
+
+// ------------------------------------------------------------------------------------------ conversión a agentes
+
+const REPO_URL = 'https://github.com/MatiasDelosSantos/vigia';
+
+/** Bloque "usalo en tu agente": un comando, enlaces de instalación en un clic y la skill. */
+export function agentSection(L: Locale): string {
+  const url = `${config.publicUrl}/mcp`;
+  const cursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=vigia&config=${encodeURIComponent(Buffer.from(JSON.stringify({ url })).toString('base64'))}`;
+  const vscode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: 'vigia', type: 'http', url }))}`;
+  return `<h2 id="agent">${esc(t(L, 'agent.title'))}</h2>
+<div class="card"><p style="margin-top:0">${esc(t(L, 'agent.text'))}</p>
+<pre>claude mcp add --transport http vigia ${esc(url)}</pre>
+<p class="btns"><a class="btn" href="${esc(cursor)}" rel="nofollow">${esc(t(L, 'agent.cursor'))}</a><a class="btn" href="${esc(vscode)}" rel="nofollow">${esc(t(L, 'agent.vscode'))}</a><a class="btn alt" href="${REPO_URL}">★ ${esc(t(L, 'agent.star'))}</a></p>
+<details><summary>${esc(t(L, 'agent.json'))}</summary><pre>{ "mcpServers": { "vigia": { "url": "${esc(url)}" } } }</pre></details>
+<p class="muted" style="margin-bottom:0"><a href="/skill.md">${esc(t(L, 'agent.skill'))}</a> · <a href="${REPO_URL}#github-action">${esc(t(L, 'agent.action'))}</a></p></div>`;
+}
+
+// ------------------------------------------------------------------------------------------ modelos de IA
+
+const PROVIDER_NAMES: Record<string, string> = {
+  openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', 'meta-llama': 'Meta Llama', mistralai: 'Mistral AI', 'x-ai': 'xAI',
+  deepseek: 'DeepSeek', qwen: 'Qwen', cohere: 'Cohere', perplexity: 'Perplexity', amazon: 'Amazon', microsoft: 'Microsoft',
+  nvidia: 'NVIDIA', moonshotai: 'Moonshot AI', 'z-ai': 'Z.ai', minimax: 'MiniMax', baidu: 'Baidu', tencent: 'Tencent',
+  bytedance: 'ByteDance', 'bytedance-seed': 'ByteDance Seed', inception: 'Inception', 'arcee-ai': 'Arcee AI', ai21: 'AI21',
+  'aion-labs': 'AionLabs', liquid: 'Liquid', nousresearch: 'Nous Research', openrouter: 'OpenRouter', ibm: 'IBM', 'ibm-granite': 'IBM Granite',
+};
+export const providerName = (slug: string | null | undefined): string => {
+  if (!slug) return '—';
+  return PROVIDER_NAMES[slug] ?? slug.split('-').map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w)).join(' ');
+};
+
+/** Importe en dólares legible y sin notación exponencial (0.00000015 → "0.00000015", 2.5 → "2.50"). */
+const usd = (n: number | null | undefined): string => {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  if (n === 0) return '0';
+  if (n >= 1) return n.toFixed(2);
+  return n.toLocaleString('en-US', { maximumSignificantDigits: 3 });
+};
+const typicalCost = (p: any) => (p && !p.variable && p.input != null && p.output != null ? (2000 * p.input + 500 * p.output) / 1e6 : null);
+const fmtInt = (n: unknown) => (typeof n === 'number' ? n.toLocaleString('en-US') : '—');
+
+function modelRows(L: Locale, models: any[]): string {
+  return models
+    .map((m) => {
+      const pr = m.pricing ?? {};
+      const retiring = m.expiration_date ? ` <span class="badge retiring">${esc(t(L, 'list.retiring', { date: m.expiration_date }))}</span>` : '';
+      const price = (n: number | null) => (pr.variable ? esc(t(L, 'model.variable')) : `US$ ${esc(usd(n))}`);
+      return `<tr><td><a href="${L.prefix}/models/${esc(m.id)}" dir="ltr">${esc(m.id)}</a>${retiring}</td><td dir="ltr">${price(pr.input)}</td><td dir="ltr">${price(pr.output)}</td><td dir="ltr">${esc(fmtInt(m.context_length))}</td></tr>`;
+    })
+    .join('');
+}
+const modelTable = (L: Locale, models: any[]) =>
+  `<div class="card"><table><tr><th>${esc(t(L, 'list.colModel'))}</th><th>${esc(t(L, 'model.colIn'))}</th><th>${esc(t(L, 'model.colOut'))}</th><th>${esc(t(L, 'list.colContext'))}</th></tr>${modelRows(L, models)}</table></div>`;
+
+/** Más nuevos primero (lo que la gente busca), después por nombre. */
+export const sortModels = (models: any[]) =>
+  [...models].sort((a, b) => String(b.created ?? '').localeCompare(String(a.created ?? '')) || String(a.id).localeCompare(String(b.id)));
+
+const faqHtml = (faq: Array<[string, string]>) => faq.map(([q, a]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('');
+const faqLd = (faq: Array<[string, string]>) => ({ '@type': 'FAQPage', mainEntity: faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) });
+
+export function modelPage(L: Locale, view: any, siblings: any[]): string {
+  const d = view.data;
+  const p = d.pricing ?? {};
+  const verified = dateOnly(view.meta.last_verified_at);
+  const prov = providerName(d.provider);
+  const variable = esc(t(L, 'model.variable'));
+  const priceCell = (n: number | null) => (p.variable ? variable : `<span dir="ltr">US$ ${esc(usd(n))}</span>`);
+  const cost = typicalCost(p);
+  const bc = crumbs(L, [[t(L, 'model.crumb'), '/models'], [prov, d.provider ? `/models/${d.provider}` : null], [d.name, null]]);
+
+  const faq: Array<[string, string]> = [];
+  faq.push([
+    t(L, 'model.faqPriceQ', { name: d.name }),
+    p.variable || p.input == null ? t(L, 'model.faqVariable', { name: d.name }) : t(L, 'model.faqPriceA', { name: d.name, input: usd(p.input), output: usd(p.output), verified }),
+  ]);
+  if (typeof d.context_length === 'number') faq.push([t(L, 'model.faqContextQ', { name: d.name }), t(L, 'model.faqContextA', { name: d.name, context: fmtInt(d.context_length) })]);
+  faq.push([
+    t(L, 'model.faqRetireQ', { name: d.name }),
+    d.expiration_date ? t(L, 'model.faqRetireYes', { name: d.name, date: d.expiration_date }) : t(L, 'model.faqRetireNo', { name: d.name, verified }),
+  ]);
+
+  const others = sortModels(siblings.filter((m) => m.id !== d.id)).slice(0, 40);
+  const body = `${bc.html}
+<p class="muted">${esc(t(L, 'model.kind'))} · ${d.provider ? `<a href="${L.prefix}/models/${esc(d.provider)}">${esc(prov)}</a>` : '—'}</p>
+<h1><span dir="ltr">${esc(d.name)}</span> <span class="badge ${esc(d.status)}">${statusLabel(L, d.status)}</span></h1>
+<p><code>${esc(d.id)}</code></p>
+<div class="card"><table>
+${row(t(L, 'model.input'), priceCell(p.input))}
+${row(t(L, 'model.output'), priceCell(p.output))}
+${cost !== null ? row(t(L, 'model.reqCost'), `<span dir="ltr">US$ ${esc(usd(cost))}</span>`) : ''}
+${row(t(L, 'model.context'), `<span dir="ltr">${esc(fmtInt(d.context_length))}</span>`)}
+${row(t(L, 'model.maxOut'), `<span dir="ltr">${esc(fmtInt(d.max_output_tokens))}</span>`)}
+${row(t(L, 'model.retirement'), d.expiration_date ? `<strong dir="ltr">${esc(d.expiration_date)}</strong>` : esc(t(L, 'model.none')))}
+${row(t(L, 'model.cutoff'), esc(d.knowledge_cutoff ?? '—'))}
+${row(t(L, 'pkg.lastVerified'), fmtDate(view.meta.last_verified_at))}
+</table></div>
+<p class="muted">${esc(t(L, 'model.note'))}</p>
+<h2>${esc(t(L, 'faq.title'))}</h2>
+${faqHtml(faq)}
+${others.length ? `<h2>${esc(t(L, 'model.sameProvider', { provider: prov }))}</h2>${modelTable(L, others)}` : ''}
+${agentSection(L)}
+<h2>${esc(t(L, 'pkg.forAgents'))}</h2>
+<pre>GET ${esc(config.publicUrl)}/v1/models/${esc(d.id)}</pre>`;
+  const price = p.variable || p.input == null ? t(L, 'model.variable') : `US$ ${usd(p.input)} / US$ ${usd(p.output)} (1M tokens)`;
+  return layout(L, {
+    title: t(L, 'model.title2', { name: d.name }),
+    description: t(L, 'model.meta2', { name: d.name, id: d.id, price, context: fmtInt(d.context_length), verified }),
+    path: `/models/${d.id}`,
+    body,
+    ld: [bc.ld, faqLd(faq)],
+  });
+}
+
+export function providerPage(L: Locale, provider: string, models: any[]): string {
+  const prov = providerName(provider);
+  const bc = crumbs(L, [[t(L, 'model.crumb'), '/models'], [prov, null]]);
+  const title = t(L, 'model.provTitle', { provider: prov });
+  const intro = t(L, 'model.provIntro', { count: models.length, provider: prov });
+  const body = `${bc.html}<h1>${esc(title)}</h1><p class="muted">${esc(intro)}</p>
+${modelTable(L, sortModels(models))}
+<p class="muted">${esc(t(L, 'model.note'))}</p>
+${agentSection(L)}
+<h2>${esc(t(L, 'pkg.forAgents'))}</h2>
+<pre>GET ${esc(config.publicUrl)}/v1/models?provider=${esc(provider)}</pre>`;
+  return layout(L, {
+    title: `${title} — Vigia`,
+    description: intro,
+    path: `/models/${provider}`,
+    body,
+    ld: [bc.ld, { '@type': 'CollectionPage', name: title, url: localeUrl(L, `/models/${provider}`), inLanguage: L.lang }],
+  });
+}
+
+export function modelsIndexPage(L: Locale, models: any[]): string {
+  const counts = new Map<string, number>();
+  for (const m of models) if (m.provider) counts.set(m.provider, (counts.get(m.provider) ?? 0) + 1);
+  const providers = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const bc = crumbs(L, [[t(L, 'model.crumb'), null]]);
+  const body = `${bc.html}<h1>${esc(t(L, 'list.modelsTitle'))}</h1><p class="muted">${esc(t(L, 'list.modelsIntro'))}</p>
+<h2>${esc(t(L, 'model.providers'))}</h2>
+<ul class="grid">${providers.map(([slug, n]) => `<li><a href="${L.prefix}/models/${esc(slug)}">${esc(providerName(slug))}</a> <span class="muted">${n}</span></li>`).join('')}</ul>
+<h2>${esc(t(L, 'list.modelsTitle'))} (${models.length})</h2>
+${modelTable(L, sortModels(models))}
+${agentSection(L)}`;
+  return layout(L, { title: `${t(L, 'list.modelsTitle')} — Vigia`, description: t(L, 'list.modelsIntro'), path: '/models', body, ld: [bc.ld] });
 }

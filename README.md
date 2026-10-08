@@ -8,6 +8,17 @@
 claude mcp add --transport http vigia https://vigia.coredls.cloud/mcp
 ```
 
+Or install it as a **Claude Code plugin**, which bundles the MCP server and a skill that tells the agent when to use it:
+
+```text
+/plugin marketplace add MatiasDelosSantos/vigia
+/plugin install vigia@vigia
+```
+
+Other agents can use the skill directly: [`skills/vigia/SKILL.md`](skills/vigia/SKILL.md) (also served at https://vigia.coredls.cloud/skill.md).
+
+**One-click install:** [Cursor](https://vigia.coredls.cloud/#agent) · [VS Code](https://vigia.coredls.cloud/#agent)
+
 ## Why
 
 Models freeze at their training cutoff; ecosystems ship thousands of releases a day. Agents confidently write code against APIs that changed. Example — **Next.js 14 → 15**, detected automatically from the packages' TypeScript types:

@@ -1,0 +1,35 @@
+// Quinto bloque: conversión a agentes (MCP, skill), instalación y precios de modelos por proveedor.
+export const en5 = {
+  'agent.title': 'Give your AI agent these facts',
+  'agent.text': 'Vigia is a free MCP server: your coding agent checks versions, breaking changes and vulnerabilities before it writes code. No signup, no API key.',
+  'agent.cursor': 'Add to Cursor',
+  'agent.vscode': 'Add to VS Code',
+  'agent.json': 'Any other MCP client',
+  'agent.skill': 'Agent skill (SKILL.md): tells the agent when to use Vigia',
+  'agent.star': 'Star on GitHub',
+  'agent.action': 'GitHub Action for pull requests',
+  'pkg.install': 'Install',
+  'faq.installQ': 'How do I install the latest version of {name}?',
+  'faq.installA': 'Run {cmd}. The latest stable version is {version} (verified {verified}).',
+  'model.crumb': 'AI models',
+  'model.title2': '{name}: price per million tokens, context window and retirement date',
+  'model.meta2': '{name} ({id}): {price}; context window of {context} tokens. Verified {verified}.',
+  'model.reqCost': 'Typical request (2,000 tokens in, 500 out)',
+  'model.faqPriceQ': 'How much does {name} cost?',
+  'model.faqPriceA': '{name} costs US$ {input} per million input tokens and US$ {output} per million output tokens (OpenRouter reference price, verified {verified}).',
+  'model.faqVariable': '{name} has variable pricing; check the provider for the current rate.',
+  'model.faqContextQ': 'What is the context window of {name}?',
+  'model.faqContextA': '{name} accepts up to {context} tokens of context.',
+  'model.faqRetireQ': 'Is {name} being retired?',
+  'model.faqRetireYes': 'Yes. {name} is scheduled to be retired on {date}.',
+  'model.faqRetireNo': 'No retirement date has been announced for {name} (checked {verified}).',
+  'model.sameProvider': 'Other {provider} models',
+  'model.provTitle': '{provider} API pricing: all models, per million tokens',
+  'model.provIntro': 'Input and output prices per million tokens, context windows and retirement dates for {count} {provider} models, from the OpenRouter catalog. Updated automatically.',
+  'model.providers': 'Providers',
+  'model.colIn': 'Input / 1M',
+  'model.colOut': 'Output / 1M',
+} as const;
+
+export type Message5Key = keyof typeof en5;
+export type Messages5 = Record<Message5Key, string>;

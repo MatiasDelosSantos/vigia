@@ -4,8 +4,9 @@ import { en } from '../src/i18n/en.js';
 import { en2 } from '../src/i18n/extra/en.js';
 import { en3 } from '../src/i18n/tools/en.js';
 import { en4 } from '../src/i18n/upgrade/en.js';
+import { en5 } from '../src/i18n/growth/en.js';
 
-const base: Record<string, string> = { ...en, ...en2, ...en3, ...en4 };
+const base: Record<string, string> = { ...en, ...en2, ...en3, ...en4, ...en5 };
 
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 

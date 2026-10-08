@@ -16,6 +16,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
 COPY migrations ./migrations
+COPY skills ./skills
 USER vigia
 EXPOSE 3005
 CMD ["node", "dist/server.js"]
