@@ -8,18 +8,31 @@ import { submitIndexNow } from './indexnow.js';
 import { recoverJobs, runNextJob, scheduleTopUpgrades } from './analysis.js';
 import { scheduleNewMajorGuides } from './feeds.js';
 
-const BATCH = 24;
+/**
+ * Carriles de verificación: cada ecosistema avanza a su propio ritmo. Antes había un único lote de 24 y, si caían varios
+ * crates (1 request por segundo), todo el lote esperaba a ese registry y el resto se frenaba.
+ */
+const LANES: Array<{ name: string; ecosystems: string[]; batch: number }> = [
+  { name: 'npm', ecosystems: ['npm'], batch: 8 },
+  { name: 'pypi', ecosystems: ['pypi'], batch: 6 },
+  { name: 'crates', ecosystems: ['crates'], batch: 1 },
+  { name: 'packagist', ecosystems: ['packagist'], batch: 4 },
+  { name: 'eol', ecosystems: ['eol'], batch: 2 },
+];
+const LANE_ECOSYSTEMS = LANES.flatMap((l) => l.ecosystems);
 const LEASE = "interval '10 minutes'"; // si el worker muere a mitad de camino, la entidad vuelve a la cola
 const MAX_BACKOFF_S = 24 * 3600;
 let stopping = false;
 
-async function claim(): Promise<EntityRow[]> {
+/** Reclama entidades vencidas de los ecosistemas de un carril (ecosystems = null: lo que ningún carril cubre, p. ej. los feeds). */
+async function claim(ecosystems: string[] | null, batch: number): Promise<EntityRow[]> {
   const r = await pool.query<EntityRow>(
     `UPDATE entity SET next_check_at = now() + ${LEASE}
      WHERE id IN (SELECT id FROM entity WHERE tracked AND next_check_at <= now()
+                  AND (CASE WHEN $3::text[] IS NULL THEN NOT (ecosystem = ANY($2::text[])) ELSE ecosystem = ANY($3::text[]) END)
                   ORDER BY next_check_at LIMIT $1 FOR UPDATE SKIP LOCKED)
      RETURNING *`,
-    [BATCH],
+    [batch, LANE_ECOSYSTEMS, ecosystems],
   );
   return r.rows;
 }
@@ -47,11 +60,27 @@ async function processEntity(entity: EntityRow): Promise<void> {
 
 const INDEXNOW_EVERY_MS = 30 * 60_000;
 
+const processedBy = new Map<string, number>();
+
+/** Un carril: reclama y procesa lotes de sus ecosistemas, sin esperar a los demás. */
+async function lane(name: string, ecosystems: string[] | null, batchSize: number): Promise<void> {
+  while (!stopping) {
+    const batch = await claim(ecosystems, batchSize);
+    if (batch.length === 0) {
+      await new Promise((r) => setTimeout(r, 2000));
+      continue;
+    }
+    // La concurrencia real hacia cada registry la limita httpGet por host.
+    await Promise.all(batch.map(processEntity));
+    processedBy.set(name, (processedBy.get(name) ?? 0) + batch.length);
+  }
+}
+
 async function loop(): Promise<void> {
-  let processed = 0;
   let lastLog = Date.now();
   // La primera notificación espera 20 min para que la verificación inicial haya avanzado.
   let lastIndexNow = Date.now() - INDEXNOW_EVERY_MS + 20 * 60_000;
+  const lanes = [...LANES.map((l) => lane(l.name, l.ecosystems, l.batch)), lane('other', null, 4)];
   while (!stopping) {
     if (Date.now() - lastIndexNow > INDEXNOW_EVERY_MS) {
       lastIndexNow = Date.now();
@@ -59,20 +88,15 @@ async function loop(): Promise<void> {
         .then((n) => n && console.log(`indexnow: ${n} URLs notificadas`))
         .catch((err) => console.error('indexnow falló:', err instanceof Error ? err.message : err));
     }
-    const batch = await claim();
-    if (batch.length === 0) {
-      await new Promise((r) => setTimeout(r, 2000));
-    } else {
-      // La concurrencia real hacia cada registry la limita httpGet por host.
-      await Promise.all(batch.map(processEntity));
-      processed += batch.length;
-    }
+    await new Promise((r) => setTimeout(r, 2000));
     if (Date.now() - lastLog > 60_000) {
-      console.log(`[worker ${hostname()}] ${processed} entidades procesadas en el último minuto`);
-      processed = 0;
+      const parts = [...processedBy.entries()].map(([k, v]) => `${k} ${v}`).join(', ');
+      console.log(`[worker ${hostname()}] entidades procesadas en el último minuto: ${parts || 'ninguna'}`);
+      processedBy.clear();
       lastLog = Date.now();
     }
   }
+  await Promise.all(lanes);
 }
 
 async function main(): Promise<void> {
