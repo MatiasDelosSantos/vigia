@@ -4,7 +4,7 @@ import { migrate } from './migrate.js';
 import { seed } from './seed.js';
 import { refreshEntity } from './connectors/index.js';
 import type { EntityRow } from './facts.js';
-import { submitIndexNow } from './indexnow.js';
+import { submitEolIndexNow, submitIndexNow } from './indexnow.js';
 import { recoverJobs, runNextJob, scheduleTopUpgrades } from './analysis.js';
 import { scheduleNewMajorGuides } from './feeds.js';
 
@@ -87,6 +87,9 @@ async function loop(): Promise<void> {
       submitIndexNow()
         .then((n) => n && console.log(`indexnow: ${n} URLs notificadas`))
         .catch((err) => console.error('indexnow falló:', err instanceof Error ? err.message : err));
+      submitEolIndexNow()
+        .then((n) => n && console.log(`indexnow (fin de vida): ${n} URLs notificadas`))
+        .catch((err) => console.error('indexnow (fin de vida) falló:', err instanceof Error ? err.message : err));
     }
     await new Promise((r) => setTimeout(r, 2000));
     if (Date.now() - lastLog > 60_000) {

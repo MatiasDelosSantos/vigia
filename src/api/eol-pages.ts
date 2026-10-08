@@ -139,7 +139,7 @@ ${agentSection(L)}
 <pre>GET ${esc(config.publicUrl)}/v1/eol/${esc(product)}/${esc(c.cycle)}</pre>`;
   const short = c.status === 'end_of_life' ? `reached end of life${c.eol_from ? ` on ${c.eol_from}` : ''}` : c.eol_from ? `is supported until ${c.eol_from}` : 'has no announced end-of-life date';
   return layout(L, {
-    title: `${name} end of life (EOL): ${c.status === 'end_of_life' ? 'ended' : c.eol_from ?? 'supported'} — Vigia`,
+    title: `${name} end of life (EOL): ${c.status === 'end_of_life' ? `ended${c.eol_from ? ` ${c.eol_from}` : ''}` : c.status === 'upcoming' ? 'not released yet' : c.eol_from ? `supported until ${c.eol_from}` : 'supported'} — Vigia`,
     description: `${name} ${short}. Release date, active support, security fixes and latest version.`.slice(0, 300),
     path,
     body,

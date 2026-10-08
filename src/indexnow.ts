@@ -55,3 +55,35 @@ export async function submitIndexNow(): Promise<number> {
   );
   return urls.length;
 }
+
+const EOL_STATE_KEY = 'indexnow_eol_v1';
+
+/**
+ * Páginas de fin de vida (sólo en inglés): la primera vez todas, después sólo las de productos que cambiaron.
+ * Se llama aparte de submitIndexNow porque no son paquetes.
+ */
+export async function submitEolIndexNow(): Promise<number> {
+  if (!config.indexNowKey) return 0;
+  const state = await pool.query<{ v: string }>(`SELECT v FROM kv WHERE k = $1`, [EOL_STATE_KEY]);
+  const since = state.rows[0]?.v ?? null;
+  const startedAt = new Date().toISOString();
+  const r = await pool.query<{ name: string; cycles: Array<{ cycle: string }> | null }>(
+    `SELECT e.name, f.value AS cycles FROM entity e
+     JOIN fact f ON f.entity_id = e.id AND f.predicate = 'eol_cycles' AND f.recorded_to IS NULL
+     WHERE e.ecosystem = 'eol' AND e.last_checked_at IS NOT NULL
+       AND ($1::timestamptz IS NULL OR e.last_changed_at > $1 OR e.created_at > $1)`,
+    [since],
+  );
+  if (r.rows.length === 0) return 0;
+  const base = config.publicUrl;
+  const urls = [`${base}/eol`, ...r.rows.flatMap((x) => [`${base}/eol/${x.name}`, ...(x.cycles ?? []).map((c) => `${base}/eol/${x.name}/${c.cycle}`)])];
+  for (let i = 0; i < urls.length; i += BATCH) {
+    await post(urls.slice(i, i + BATCH));
+    if (i + BATCH < urls.length) await new Promise((res) => setTimeout(res, 2000));
+  }
+  await pool.query(
+    `INSERT INTO kv (k, v) VALUES ($1, to_jsonb($2::text)) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, updated_at = now()`,
+    [EOL_STATE_KEY, startedAt],
+  );
+  return urls.length;
+}
