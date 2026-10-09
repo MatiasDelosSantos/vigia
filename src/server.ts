@@ -325,6 +325,11 @@ app.get('/.well-known/mcp/server-card.json', (c) =>
   ),
 );
 
+// Verificación de titularidad del conector en Glama (el token está atado a la cuenta de Glama del autor y debe seguir publicado).
+app.get('/.well-known/glama.json', (c) =>
+  c.json({ $schema: 'https://glama.ai/mcp/schemas/connector.json', claim: 'glama_claim_Rppv5IEIAyQnuk1MwCtb6WqLN5cK-oUU' }, 200, { 'cache-control': CACHE_LONG, 'access-control-allow-origin': '*' }),
+);
+
 app.get('/openapi.json', (c) => {
   c.header('cache-control', CACHE_LONG);
   return c.json(openapi());
