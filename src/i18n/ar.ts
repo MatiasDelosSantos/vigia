@@ -91,7 +91,7 @@ export const ar: Messages = {
   'docs.when2': 'قبل تحديث الاعتماديات (POST /v1/check).',
   'docs.when3': 'قبل كتابة معرّف نموذج ذكاء اصطناعي بشكل ثابت في الشيفرة.',
   'docs.mcpTitle': 'خادم MCP',
-  'docs.mcpText': 'نقطة نهاية HTTP قابلة للبث (streamable)، بلا مصادقة. الأدوات: package_status وcheck_dependencies وrecent_changes وmodel_info وfind_package وversion_status وupgrade_impact وsymbol_status وfind_compatible_version.',
+  'docs.mcpText': 'نقطة نهاية HTTP قابلة للبث (streamable)، بلا مصادقة. الأدوات: package_status وcheck_dependencies وrecent_changes وmodel_status وfind_package وversion_status وupgrade_impact وsymbol_status وfind_compatible_version.',
   'docs.restTitle': 'واجهة REST البرمجية',
   'docs.ep.package': 'الحالة الحالية للحزمة؛ ويعيد المعامل الاختياري as_of ما كان Vigia يقرّره في تلك اللحظة',
   'docs.ep.history': 'التغييرات المرصودة للحزمة',

@@ -1,6 +1,6 @@
 {
   "name": "vigia",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Version-accurate facts for coding agents: what breaks between package versions, whether an API exists in the installed version, compatible versions and per-version vulnerabilities (npm, PyPI), plus AI model prices.",
   "author": { "name": "Matias de los Santos", "url": "https://github.com/MatiasDelosSantos" },
   "homepage": "https://vigia.coredls.cloud",

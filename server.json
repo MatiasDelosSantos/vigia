@@ -3,7 +3,7 @@
   "name": "cloud.coredls.vigia/vigia",
   "title": "Vigía",
   "description": "What breaks between versions, vulnerabilities, compatible versions, EOL dates: npm, PyPI, Rust, PHP.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "websiteUrl": "https://vigia.coredls.cloud",
   "remotes": [
     {

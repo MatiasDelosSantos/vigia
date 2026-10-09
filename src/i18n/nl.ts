@@ -91,7 +91,7 @@ export const nl: Messages = {
   'docs.when2': 'Voordat het afhankelijkheden bijwerkt (POST /v1/check).',
   'docs.when3': 'Voordat het de ID van een AI-model hard in code zet.',
   'docs.mcpTitle': 'MCP-server',
-  'docs.mcpText': 'Streamable-HTTP-endpoint, zonder authenticatie. Tools: package_status, check_dependencies, recent_changes, model_info, find_package, version_status, upgrade_impact, symbol_status, find_compatible_version.',
+  'docs.mcpText': 'Streamable-HTTP-endpoint, zonder authenticatie. Tools: package_status, check_dependencies, recent_changes, model_status, find_package, version_status, upgrade_impact, symbol_status, find_compatible_version.',
   'docs.restTitle': 'REST-API',
   'docs.ep.package': 'huidige staat van een pakket; de optionele parameter as_of geeft terug wat Vigia op dat moment beweerde',
   'docs.ep.history': 'waargenomen wijzigingen van een pakket',

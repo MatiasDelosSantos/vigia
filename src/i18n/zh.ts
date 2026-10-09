@@ -91,7 +91,7 @@ export const zh: Messages = {
   'docs.when2': '在升级依赖之前（POST /v1/check）。',
   'docs.when3': '在代码中硬编码 AI 模型 ID 之前。',
   'docs.mcpTitle': 'MCP 服务器',
-  'docs.mcpText': 'Streamable HTTP 端点，无需身份验证。工具：package_status、check_dependencies、recent_changes、model_info、find_package、version_status、upgrade_impact、symbol_status、find_compatible_version。',
+  'docs.mcpText': 'Streamable HTTP 端点，无需身份验证。工具：package_status、check_dependencies、recent_changes、model_status、find_package、version_status、upgrade_impact、symbol_status、find_compatible_version。',
   'docs.restTitle': 'REST API',
   'docs.ep.package': '软件包的当前状态；可选参数 as_of 返回 Vigia 在该时刻给出的信息',
   'docs.ep.history': '软件包观察到的变更',

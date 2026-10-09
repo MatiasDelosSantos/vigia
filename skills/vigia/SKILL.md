@@ -21,7 +21,8 @@ Your training data has a cutoff, but package ecosystems release new versions eve
 | Is this exact version vulnerable, and what is the nearest fixed version? | `version_status` | `GET /v1/packages/{eco}/{name}/versions/{version}` |
 | Reviewing a whole `package.json` or `requirements.txt` | `check_dependencies` | `POST /v1/check` |
 | Choosing a runtime, base image or CI matrix: is this Python/Node/PHP/Java/Ruby/Go/framework/database/OS version still supported, and when does it reach end of life? | `eol_status` | `GET /v1/eol/{product}/{version}` |
-| Choosing or replacing an AI model (price per 1M tokens, context, retirement date) | `model_info` | `GET /v1/models/{id}` |
+| Choosing or replacing an AI model (price per 1M tokens, context, retirement date) | `model_status` | `GET /v1/models/{id}` |
+| How often is a package released, was a version withdrawn, what was current on a date? | `list_versions` | `GET /v1/packages/{eco}/{name}/versions` |
 | What changed recently in the ecosystem | `recent_changes` | `GET /v1/changes` |
 
 ## How to use the answers
