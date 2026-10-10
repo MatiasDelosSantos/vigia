@@ -13,7 +13,7 @@ import { splitPackagePath } from './paths.js';
 import { availableGuides, compatibilityTable, compatibleVersion, guidesFor, symbolStatus, upgradeReport } from './intel.js';
 import { parseConstraints } from './upgrade.js';
 import { openapi } from './api/openapi.js';
-import { modelPage, modelsIndexPage, providerPage, upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
+import { ctaVariant, modelPage, modelsIndexPage, providerPage, upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
 import { readFileSync } from 'node:fs';
 import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
 import { recentVersions } from './versions.js';
@@ -211,6 +211,16 @@ app.get('/v1/models/*', async (c) => {
   }
   c.header('cache-control', CACHE_SHORT);
   return c.json(await modelView(e, asOf));
+});
+
+// Clics en los botones de instalación (navigator.sendBeacon): sólo "botón|variante", sin datos personales ni cookies.
+app.post('/_cta', async (c) => {
+  const body = (await c.req.text().catch(() => '')).slice(0, 40);
+  if (/^(copy|cursor|vscode|star|skill|action)\|[a-z0-9]{1,3}$/.test(body) && classify(c.req.header('user-agent')) === 'human') {
+    const [cta, variant] = body.split('|');
+    track('cta', `${variant} ${cta}`);
+  }
+  return c.body(null, 204);
 });
 
 // Fin de vida de lenguajes, runtimes, frameworks y sistemas (endoflife.date).
@@ -465,7 +475,7 @@ app.get('/privacy', (c) => c.html(legalHtml('privacy'), 200, { 'cache-control': 
 app.get('/robots.txt', (c) =>
   c.text(
     // Abierto a buscadores y agentes, incluidos los crawlers de IA: queremos ser la fuente citada.
-    `User-agent: *\nAllow: /\nDisallow: /mcp\nDisallow: /admin\n\nSitemap: ${config.publicUrl}/sitemap.xml\n`,
+    `User-agent: *\nAllow: /\nDisallow: /mcp\nDisallow: /admin\nDisallow: /_cta\n\nSitemap: ${config.publicUrl}/sitemap.xml\n`,
     200,
     { 'cache-control': CACHE_LONG },
   ),
@@ -669,6 +679,7 @@ function registerPages(L: Locale): void {
         );
       }
       const view = await packageView(entity);
+      if (!md && classify(c.req.header('user-agent')) === 'human') track('ab_view', ctaVariant(`/${eco}/${name}`));
       if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
       const history = (await packageHistory(entity, 30)).data.changes;
       const peers = Object.keys((view.data as any).requires?.peer_dependencies ?? {});

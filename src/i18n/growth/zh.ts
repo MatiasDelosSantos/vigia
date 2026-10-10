@@ -37,4 +37,6 @@ export const zh5: Messages5 = {
   'pkg.requiresPhp': '所需 PHP 版本 (composer.json)',
   'docs.src.packagist': 'Packagist：来自 repo.packagist.org 的静态 Composer v2 元数据（每个版本的 require.php 约束和废弃标记）；安全公告来自 OSV。',
   'docs.ep.eol': '约 480 种语言、运行时、框架和操作系统的生命周期终止日期与支持状态',
+  'agent.copy': '复制安装命令',
+  'agent.copied': '已复制！',
 };

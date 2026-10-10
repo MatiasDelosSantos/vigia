@@ -37,4 +37,6 @@ export const vi5: Messages5 = {
   'pkg.requiresPhp': 'Phiên bản PHP yêu cầu (composer.json)',
   'docs.src.packagist': 'Packagist: siêu dữ liệu Composer v2 tĩnh từ repo.packagist.org (mỗi phiên bản kèm ràng buộc require.php và cờ bị bỏ rơi); cảnh báo bảo mật từ OSV.',
   'docs.ep.eol': 'ngày hết hỗ trợ và trạng thái hỗ trợ của ~480 ngôn ngữ, runtime, framework và hệ điều hành',
+  'agent.copy': 'Sao chép lệnh cài đặt',
+  'agent.copied': 'Đã sao chép!',
 };

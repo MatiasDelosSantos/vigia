@@ -37,4 +37,6 @@ export const ar5: Messages5 = {
   'pkg.requiresPhp': 'إصدار PHP المطلوب (composer.json)',
   'docs.src.packagist': 'Packagist: بيانات Composer v2 الثابتة من repo.packagist.org (كل إصدار مع قيد require.php وعلامة الإهمال)؛ التنبيهات الأمنية من OSV.',
   'docs.ep.eol': 'نهاية الدعم وحالة الدعم لنحو 480 لغة وبيئة تشغيل وإطار عمل ونظام تشغيل',
+  'agent.copy': 'انسخ أمر التثبيت',
+  'agent.copied': 'تم النسخ!',
 };

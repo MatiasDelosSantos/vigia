@@ -37,4 +37,6 @@ export const tr5: Messages5 = {
   'pkg.requiresPhp': 'Gereken PHP sürümü (composer.json)',
   'docs.src.packagist': 'Packagist: repo.packagist.org\'daki statik Composer v2 üstverisi (her sürüm, require.php kısıtı ve terk edilmiş işaretiyle); güvenlik uyarıları OSV\'den.',
   'docs.ep.eol': 'yaklaşık 480 dil, çalışma zamanı, çerçeve ve işletim sisteminin destek sonu ve destek durumu',
+  'agent.copy': 'Kurulum komutunu kopyala',
+  'agent.copied': 'Kopyalandı!',
 };

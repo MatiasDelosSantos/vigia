@@ -37,4 +37,6 @@ export const ko5: Messages5 = {
   'pkg.requiresPhp': '필요한 PHP 버전 (composer.json)',
   'docs.src.packagist': 'Packagist: repo.packagist.org의 정적 Composer v2 메타데이터(각 버전의 require.php 제약과 폐기 표시). 보안 권고는 OSV 제공.',
   'docs.ep.eol': '약 480개 언어·런타임·프레임워크·OS의 지원 종료일과 지원 상태',
+  'agent.copy': '설치 명령 복사',
+  'agent.copied': '복사됨!',
 };

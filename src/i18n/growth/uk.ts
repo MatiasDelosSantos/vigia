@@ -37,4 +37,6 @@ export const uk5: Messages5 = {
   'pkg.requiresPhp': 'Потрібна версія PHP (composer.json)',
   'docs.src.packagist': 'Packagist: статичні метадані Composer v2 з repo.packagist.org (кожна версія з обмеженням require.php і позначкою «занедбаний»); сповіщення про вразливості з OSV.',
   'docs.ep.eol': 'кінець підтримки та статус підтримки ~480 мов, середовищ виконання, фреймворків і ОС',
+  'agent.copy': 'Скопіювати команду встановлення',
+  'agent.copied': 'Скопійовано!',
 };

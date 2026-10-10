@@ -37,4 +37,6 @@ export const fr5: Messages5 = {
   'pkg.requiresPhp': 'Version de PHP requise (composer.json)',
   'docs.src.packagist': 'Packagist : métadonnées statiques Composer v2 de repo.packagist.org (chaque version avec sa contrainte require.php et l’indicateur « abandonné ») ; avis OSV.',
   'docs.ep.eol': 'fin de vie et état du support de ~480 langages, runtimes, frameworks et systèmes d’exploitation',
+  'agent.copy': 'Copier la commande d’installation',
+  'agent.copied': 'Copié !',
 };

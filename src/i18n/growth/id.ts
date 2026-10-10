@@ -37,4 +37,6 @@ export const id5: Messages5 = {
   'pkg.requiresPhp': 'Versi PHP yang dibutuhkan (composer.json)',
   'docs.src.packagist': 'Packagist: metadata statis Composer v2 dari repo.packagist.org (setiap versi dengan batasan require.php dan penanda ditinggalkan); peringatan keamanan dari OSV.',
   'docs.ep.eol': 'akhir masa dukungan dan status dukungan ~480 bahasa, runtime, framework, dan sistem operasi',
+  'agent.copy': 'Salin perintah instalasi',
+  'agent.copied': 'Disalin!',
 };

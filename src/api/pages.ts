@@ -30,6 +30,7 @@ ul{padding-inline-start:20px}ul.changes{font-size:14px}footer{margin-top:48px;fo
 .langs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px}.langs a[aria-current]{font-weight:700;color:var(--fg);text-decoration:none}
 .crumbs{font-size:13px;color:var(--muted);margin:0 0 10px}.crumbs a{color:var(--muted)}.crumbs span[aria-hidden]{margin:0 6px}
 details.faq{border-bottom:1px solid var(--line);padding:10px 0}details.faq summary{cursor:pointer;font-weight:600}details.faq p{margin:8px 0 0}
+.ctabar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:10px 14px}.ctabar .btns{margin:0}button.btn{border:0;font:inherit;font-weight:600;font-size:14px;cursor:pointer}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.btn{display:inline-block;padding:7px 14px;border-radius:8px;background:var(--accent);color:var(--bg);text-decoration:none;font-weight:600;font-size:14px}.btn.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
 .grid{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0;list-style:none}.pager{display:flex;gap:16px;align-items:center;margin:16px 0}
 `;
@@ -54,7 +55,7 @@ export function crumbs(L: Locale, items: Array<[label: string, path: string | nu
 
 export function layout(
   L: Locale,
-  opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string; singleLanguage?: boolean },
+  opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string; singleLanguage?: boolean; variant?: string },
 ): string {
   const url = localeUrl(L, opts.path);
   const alternates = opts.singleLanguage ? '' : LOCALES.map((x) => `<link rel="alternate" hreflang="${x.lang}" href="${esc(localeUrl(x, opts.path))}">`).join('');
@@ -73,7 +74,7 @@ export function layout(
   ]
     .map(([p, c]) => `<meta property="${p}" content="${esc(c)}">`)
     .join('');
-  return `<!doctype html><html lang="${L.lang}" dir="${L.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return `<!doctype html><html lang="${L.lang}" dir="${L.dir}"${opts.variant ? ` data-v="${esc(opts.variant)}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(opts.title)}</title><meta name="description" content="${esc(opts.description)}"><link rel="canonical" href="${esc(url)}">
 ${alternates}${opts.singleLanguage ? '' : `<link rel="alternate" hreflang="x-default" href="${esc(localeUrl(LOCALES[0]!, opts.path))}">`}
 ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.publicUrl + opts.mdPath)}">` : ''}
@@ -87,8 +88,22 @@ ${ldGraph ? `<script type="application/ld+json">${jsonLd(ldGraph)}</script>` : '
 ${opts.body}
 <footer>${esc(t(L, 'footer.text'))} <a href="${L.prefix}/status">${esc(t(L, 'nav.status'))}</a> · <a href="/terms">${esc(t(L, 'footer.terms'))}</a> · <a href="/privacy">${esc(t(L, 'footer.privacy'))}</a> · <a href="/llms.txt">llms.txt</a> · <a href="/v1/stats">${esc(t(L, 'footer.stats'))}</a>
 <nav class="langs" aria-label="${esc(t(L, 'footer.languages'))}">${langLinks}</nav></footer>
-</main></body></html>`;
+</main>${CTA_SCRIPT}</body></html>`;
 }
+
+/**
+ * Prueba A/B de la ubicación del bloque de instalación en las páginas de paquetes. La variante depende sólo de la ruta
+ * (estable y cacheable, sin cookies ni identificadores): a = como estaba, b = bloque subido bajo la tabla de datos,
+ * c = barra compacta arriba además del bloque.
+ */
+export function ctaVariant(path: string): 'a' | 'b' | 'c' {
+  let h = 0;
+  for (const ch of path) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return (['a', 'b', 'c'] as const)[h % 3]!;
+}
+
+/** Cuenta clics en los botones de instalación (sin datos personales: sólo "botón|variante") y copia el comando. */
+const CTA_SCRIPT = `<script>document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-cta]');if(!t)return;var c=t.getAttribute('data-copy');if(c&&navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var o=t.textContent;t.textContent=t.getAttribute('data-done')||'OK';setTimeout(function(){t.textContent=o},1500)})}try{navigator.sendBeacon('/_cta',t.getAttribute('data-cta')+'|'+(document.documentElement.getAttribute('data-v')||'x'))}catch(_){}})</script>`;
 
 const fmtDate = (s: unknown) => (s ? `<span dir="ltr">${esc(String(s).replace('T', ' ').replace(/\.\d+Z$|Z$/, ' UTC'))}</span>` : '<span class="muted">—</span>');
 const row = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
@@ -145,6 +160,7 @@ export function packageHtml(L: Locale, view: any, history: any[], extras: Packag
   const advisories: string[] = d.advisories_on_latest ?? [];
   const path = pkgPath(d);
   const bc = crumbs(L, [[ecoLabel, `/${eco}`], [d.name, null]]);
+  const variant = ctaVariant(pkgPath(d));
   const installCmd = eco === 'npm' ? `npm install ${d.name}@latest` : eco === 'crates' ? `cargo add ${d.name}` : eco === 'packagist' ? `composer require ${d.name}` : `pip install --upgrade ${d.name}`;
 
   // Preguntas frecuentes: respuestas cortas, fechadas y verificables (lo que los buscadores de IA citan).
@@ -190,6 +206,7 @@ export function packageHtml(L: Locale, view: any, history: any[], extras: Packag
 
   const body = `
 ${bc.html}
+${variant === 'c' ? agentBar(L) : ''}
 <p class="muted">${esc(ecoLabel)} · <span dir="ltr">${esc(d.entity)}</span></p>
 <h1><span dir="ltr">${esc(d.name)}</span> <span class="badge ${esc(d.status)}">${statusLabel(L, d.status)}</span></h1>
 ${d.description ? `<p dir="auto" lang="und">${esc(d.description)}</p>` : ''}
@@ -206,6 +223,7 @@ ${row(t(L, 'pkg.advisories'), advisories.length ? advisories.map((a) => `<a href
 ${row(t(L, 'pkg.lastVerified'), fmtDate(m.last_verified_at))}
 ${row(t(L, 'pkg.sources'), m.sources.map((s: string) => `<a href="${esc(s)}" rel="nofollow">${esc(new URL(s).host)}</a>`).join(', '))}
 </table></div>
+${variant === 'b' ? agentSection(L) : ''}
 
 ${
   mt.total_versions
@@ -230,7 +248,7 @@ ${
 
 ${packageIntelSections(L, eco, d.entity.slice(eco.length + 1), extras.compat ?? [], extras.guides ?? [])}
 
-${agentSection(L)}
+${variant === 'b' ? '' : agentSection(L)}
 
 <h2>${esc(t(L, 'faq.title'))}</h2>
 ${faq.map(([q, a]) => `<details class="faq" open><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}
@@ -262,6 +280,7 @@ GET ${esc(config.publicUrl)}/v1/packages${esc(path)}/versions/{version}</pre>`;
     path,
     mdPath: `${path}.md`,
     body,
+    variant,
     ld: [
       {
         '@type': 'SoftwareSourceCode',
@@ -876,10 +895,20 @@ export function agentSection(L: Locale): string {
   const vscode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: 'vigia', type: 'http', url }))}`;
   return `<h2 id="agent">${esc(t(L, 'agent.title'))}</h2>
 <div class="card"><p style="margin-top:0">${esc(t(L, 'agent.text'))}</p>
-<pre>claude mcp add --transport http vigia ${esc(url)}</pre>
-<p class="btns"><a class="btn" href="${esc(cursor)}" rel="nofollow">${esc(t(L, 'agent.cursor'))}</a><a class="btn" href="${esc(vscode)}" rel="nofollow">${esc(t(L, 'agent.vscode'))}</a><a class="btn alt" href="${REPO_URL}">★ ${esc(t(L, 'agent.star'))}</a></p>
+<pre>${esc(installCommand())}</pre>
+<p class="btns"><button type="button" class="btn" data-cta="copy" data-copy="${esc(installCommand())}" data-done="${esc(t(L, 'agent.copied'))}">${esc(t(L, 'agent.copy'))}</button><a class="btn" data-cta="cursor" href="${esc(cursor)}" rel="nofollow">${esc(t(L, 'agent.cursor'))}</a><a class="btn" data-cta="vscode" href="${esc(vscode)}" rel="nofollow">${esc(t(L, 'agent.vscode'))}</a><a class="btn alt" data-cta="star" href="${REPO_URL}">★ ${esc(t(L, 'agent.star'))}</a></p>
 <details><summary>${esc(t(L, 'agent.json'))}</summary><pre>{ "mcpServers": { "vigia": { "url": "${esc(url)}" } } }</pre></details>
-<p class="muted" style="margin-bottom:0"><a href="/skill.md">${esc(t(L, 'agent.skill'))}</a> · <a href="${REPO_URL}#github-action">${esc(t(L, 'agent.action'))}</a></p></div>`;
+<p class="muted" style="margin-bottom:0"><a data-cta="skill" href="/skill.md">${esc(t(L, 'agent.skill'))}</a> · <a data-cta="action" href="${REPO_URL}#github-action">${esc(t(L, 'agent.action'))}</a></p></div>`;
+}
+
+const installCommand = () => `claude mcp add --transport http vigia ${config.publicUrl}/mcp`;
+
+/** Barra compacta (variante c): el comando y los botones de un clic, en una sola fila arriba de la página. */
+export function agentBar(L: Locale): string {
+  const url = `${config.publicUrl}/mcp`;
+  const cursor = `cursor://anysphere.cursor-deeplink/mcp/install?name=vigia&config=${encodeURIComponent(Buffer.from(JSON.stringify({ url })).toString('base64'))}`;
+  const vscode = `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: 'vigia', type: 'http', url }))}`;
+  return `<div class="card ctabar"><strong>${esc(t(L, 'agent.title'))}</strong><span class="btns"><button type="button" class="btn" data-cta="copy" data-copy="${esc(installCommand())}" data-done="${esc(t(L, 'agent.copied'))}">${esc(t(L, 'agent.copy'))}</button><a class="btn" data-cta="cursor" href="${esc(cursor)}" rel="nofollow">${esc(t(L, 'agent.cursor'))}</a><a class="btn" data-cta="vscode" href="${esc(vscode)}" rel="nofollow">${esc(t(L, 'agent.vscode'))}</a></span></div>`;
 }
 
 // ------------------------------------------------------------------------------------------ modelos de IA
