@@ -55,25 +55,50 @@ function enginesNode(manifest: string): RuntimeHint[] {
 const clip = (s: string, n = 110) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const tick = (s: string) => `\`${s.replace(/`/g, "'")}\``;
 
-async function breakingLines(name: string, installedMajor: number, latestMajor: number): Promise<{ lines: string[]; guide: string | null }> {
+interface Candidate {
+  score: number;
+  line: string;
+}
+
+/** Qué tan probable es que un cambio rompa código de un agente: los que vuelven asíncrona una función van primero. */
+function rank(x: { kind_after?: string; kind?: string; before?: string; after?: string; module?: string }): number {
+  let score = 0;
+  const kind = x.kind_after ?? x.kind ?? '';
+  if (x.after && /Promise</.test(x.after) && !/Promise</.test(x.before ?? '')) score += 100;
+  if (kind === 'function' || kind === 'class') score += 60;
+  if (kind === 'type' || kind === 'interface') score -= 40;
+  if (kind === 'variable') score -= 20;
+  if ((x.before?.length ?? 0) + (x.after?.length ?? 0) < 160) score += 20;
+  if (x.module?.endsWith('constants')) score -= 30;
+  return score;
+}
+
+async function breakingLines(name: string, installedMajor: number, latestMajor: number): Promise<{ lines: string[]; guide: string | null; step: string | null }> {
   const entity = await resolvePackage('npm', name, false);
-  if (!entity) return { lines: [], guide: null };
-  const hops = (await guidesFor(entity.id)).filter((g) => g.from >= installedMajor && g.to <= latestMajor).slice(-2);
-  if (hops.length === 0) return { lines: [], guide: null };
-  const lines: string[] = [];
+  if (!entity) return { lines: [], guide: null, step: null };
+  const hops = (await guidesFor(entity.id)).filter((g) => g.from >= installedMajor && g.to <= latestMajor).slice(0, 2);
+  if (hops.length === 0) return { lines: [], guide: null, step: null };
+  const cands: Candidate[] = [];
   for (const hop of hops) {
     const r = await upgradeReport(entity, String(hop.from), String(hop.to));
     if (r.status !== 'ok') continue;
-    const bc = (r.data as any).breaking_candidates;
+    const d = r.data as any;
+    const bc = d.breaking_candidates;
     if (!bc) continue;
     const prefix = hops.length > 1 ? `${hop.from}→${hop.to}: ` : '';
-    for (const x of (bc.removed_modules ?? []).slice(0, 2)) lines.push(`${prefix}import path removed: ${tick(x)}`);
-    for (const x of (bc.removed_exports ?? []).slice(0, 2)) lines.push(`${prefix}removed: ${tick(`${x.module} · ${x.name}`)}`);
-    for (const x of (bc.changed_signatures ?? []).slice(0, 3)) lines.push(`${prefix}${tick(`${x.module} · ${x.name}`)}: ${tick(clip(x.before, 60))} → ${tick(clip(x.after, 70))}`);
-    for (const x of ((r.data as any).newly_deprecated ?? []).slice(0, 1)) lines.push(`${prefix}newly deprecated: ${tick(`${x.module} · ${x.name}`)}`);
+    for (const x of bc.removed_modules ?? []) cands.push({ score: 120, line: `${prefix}import path removed: ${tick(x)}` });
+    for (const x of bc.removed_exports ?? []) cands.push({ score: 50 + rank({ kind: x.kind, module: x.module }), line: `${prefix}removed: ${tick(`${x.module} · ${x.name}`)}` });
+    for (const x of bc.changed_signatures ?? []) cands.push({ score: rank(x), line: `${prefix}${tick(`${x.module} · ${x.name}`)}: ${tick(clip(x.before, 70))} → ${tick(clip(x.after, 80))}` });
+    for (const x of d.newly_deprecated ?? []) cands.push({ score: 5, line: `${prefix}newly deprecated: ${tick(`${x.module} · ${x.name}`)}` });
   }
+  cands.sort((a, b) => b.score - a.score);
+  const first = hops[0]!;
   const last = hops.at(-1)!;
-  return { lines: lines.slice(0, MAX_LINES_PER_PACKAGE), guide: `${config.publicUrl}/upgrade/npm/${name}/${last.from}-to-${last.to}` };
+  return {
+    lines: cands.slice(0, MAX_LINES_PER_PACKAGE).map((c) => c.line),
+    guide: `${config.publicUrl}/upgrade/npm/${name}/${first.from}-to-${first.to}`,
+    step: hops.length > 1 ? `${first.from} → ${last.to}` : `${first.from} → ${first.to}`,
+  };
 }
 
 export interface ContextResult {
@@ -107,37 +132,37 @@ export async function buildProjectContext(input: { ecosystem: 'npm' | 'pypi'; ma
       calm.push(r.name);
       continue;
     }
-    const head: string[] = [];
+    const facts: string[] = [];
+    const sub: string[] = [];
     let weight = 0;
+    if (isMajor) {
+      outdatedMajor++;
+      weight += 10 + (r.majors_behind ?? 1);
+      facts.push(`latest is ${r.latest}${r.majors_behind ? ` (${r.majors_behind} major ${r.majors_behind === 1 ? 'version' : 'versions'} behind)` : ''}`);
+    }
     if (vulns.length) {
       vulnerable++;
       weight += 100;
       let fix = '';
       try {
         const v = await vulnsForVersion(eco, r.name, r.min_version);
-        if (v.nearest_fixed_version) fix = `; nearest fixed version ${v.nearest_fixed_version}`;
+        if (v.nearest_fixed_version) fix = `, nearest fixed version ${v.nearest_fixed_version}`;
       } catch {
         // OSV no respondió: se listan igual los IDs
       }
-      head.push(`- **${r.name}** ${tick(r.spec || '*')}: ${vulns.length} known ${vulns.length === 1 ? 'vulnerability' : 'vulnerabilities'} in ${r.min_version} (${vulns.slice(0, 3).join(', ')}${vulns.length > 3 ? ', …' : ''})${fix}.`);
+      facts.push(`${vulns.length} known ${vulns.length === 1 ? 'vulnerability' : 'vulnerabilities'} in ${r.min_version} (${vulns.slice(0, 3).join(', ')}${vulns.length > 3 ? ', …' : ''}${fix})`);
     }
     if (r.package_deprecated) {
       deprecated++;
       weight += 50;
-      head.push(`- **${r.name}** is deprecated${r.deprecation_message ? `: ${clip(String(r.deprecation_message), 140)}` : ''}.`);
+      facts.push(`deprecated${r.deprecation_message ? `: ${clip(String(r.deprecation_message), 120)}` : ''}`);
     }
-    if (isMajor) {
-      outdatedMajor++;
-      weight += 10 + (r.majors_behind ?? 1);
-      const behind = r.majors_behind ? ` (${r.majors_behind} major ${r.majors_behind === 1 ? 'version' : 'versions'} behind)` : '';
-      const entry = [`- **${r.name}** ${tick(r.spec)}: latest is ${r.latest}${behind}.`];
-      if (eco === 'npm' && r.min_version && r.latest && semver.valid(r.latest) && semver.valid(r.min_version)) {
-        const b = await breakingLines(r.name, semver.major(r.min_version), semver.major(r.latest)).catch(() => ({ lines: [], guide: null }));
-        if (b.lines.length) entry.push(`  Breaking changes (from the packages' TypeScript types):`, ...b.lines.map((l) => `  - ${l}`));
-        if (b.guide) entry.push(`  Details: ${b.guide}`);
-      }
-      head.push(...entry);
+    if (isMajor && eco === 'npm' && r.min_version && r.latest && semver.valid(r.latest) && semver.valid(r.min_version)) {
+      const b = await breakingLines(r.name, semver.major(r.min_version), semver.major(r.latest)).catch(() => ({ lines: [], guide: null, step: null }));
+      if (b.lines.length) sub.push(`  Breaking changes in ${b.step} (detected from the packages' TypeScript types):`, ...b.lines.map((l) => `  - ${l}`));
+      if (b.guide) sub.push(`  Details: ${b.guide}`);
     }
+    const head: string[] = [`- **${r.name}** ${tick(r.spec || '*')}: ${facts.join('; ')}.`, ...sub];
     attention.push({ line: head, weight });
   }
   attention.sort((a, b) => b.weight - a.weight);
@@ -172,7 +197,7 @@ export async function buildProjectContext(input: { ecosystem: 'npm' | 'pypi'; ma
     MARK_START,
     `## Dependency facts for AI agents (generated by Vigia on ${generated})`,
     '',
-    `Generated from this project's ${eco === 'npm' ? 'package.json' : 'requirements.txt'}, checked against the ${eco === 'npm' ? 'npm' : 'PyPI'} registry, OSV and endoflife.date. Your training data may be older than these facts: when they conflict with what you remember, trust this section. Regenerate at ${config.publicUrl}/context`,
+    `Generated from this project's ${eco === 'npm' ? 'package.json' : 'requirements.txt'}, checked against the ${eco === 'npm' ? 'npm' : 'PyPI'} registry, OSV and endoflife.date. Vulnerabilities are reported for the lowest version each declared range allows (the lockfile may pin a newer one). Your training data may be older than these facts: when they conflict with what you remember, trust this section. Regenerate at ${config.publicUrl}/context`,
   ];
   if (runtimeLines.length) sections.push('', '### Runtime', ...runtimeLines);
   if (shown.length) {
