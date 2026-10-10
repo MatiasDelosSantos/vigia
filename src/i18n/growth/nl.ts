@@ -39,4 +39,6 @@ export const nl5: Messages5 = {
   'docs.ep.eol': 'einde van ondersteuning en supportstatus van ~480 talen, runtimes, frameworks en besturingssystemen',
   'agent.copy': 'Installatiecommando kopiëren',
   'agent.copied': 'Gekopieerd!',
+  'docs.ep.since': 'nieuwe hoofdversies, runtime-releases en AI-modellen na een afkapdatum',
+  'docs.ep.context': 'feitenblok over afhankelijkheden voor AGENTS.md / CLAUDE.md uit een package.json of requirements.txt',
 };

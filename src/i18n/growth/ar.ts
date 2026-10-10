@@ -39,4 +39,6 @@ export const ar5: Messages5 = {
   'docs.ep.eol': 'نهاية الدعم وحالة الدعم لنحو 480 لغة وبيئة تشغيل وإطار عمل ونظام تشغيل',
   'agent.copy': 'انسخ أمر التثبيت',
   'agent.copied': 'تم النسخ!',
+  'docs.ep.since': 'الإصدارات الرئيسية الجديدة وإصدارات بيئات التشغيل ونماذج الذكاء الاصطناعي بعد تاريخ القطع',
+  'docs.ep.context': 'كتلة حقائق عن التبعيات لملف AGENTS.md / CLAUDE.md انطلاقًا من package.json أو requirements.txt',
 };

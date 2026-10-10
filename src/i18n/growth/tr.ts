@@ -39,4 +39,6 @@ export const tr5: Messages5 = {
   'docs.ep.eol': 'yaklaşık 480 dil, çalışma zamanı, çerçeve ve işletim sisteminin destek sonu ve destek durumu',
   'agent.copy': 'Kurulum komutunu kopyala',
   'agent.copied': 'Kopyalandı!',
+  'docs.ep.since': 'kesme tarihinden sonraki yeni ana sürümler, çalışma zamanı sürümleri ve yapay zekâ modelleri',
+  'docs.ep.context': 'package.json veya requirements.txt dosyasından AGENTS.md / CLAUDE.md için bağımlılık bilgisi bloğu',
 };

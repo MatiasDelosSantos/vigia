@@ -39,4 +39,6 @@ export const hi5: Messages5 = {
   'docs.ep.eol': 'लगभग 480 भाषाओं, रनटाइम, फ़्रेमवर्क और ऑपरेटिंग सिस्टम का सपोर्ट समाप्ति और सपोर्ट स्थिति',
   'agent.copy': 'इंस्टॉल कमांड कॉपी करें',
   'agent.copied': 'कॉपी हो गया!',
+  'docs.ep.since': 'कटऑफ़ तारीख के बाद के नए मुख्य वर्ज़न, रनटाइम रिलीज़ और AI मॉडल',
+  'docs.ep.context': 'package.json या requirements.txt से AGENTS.md / CLAUDE.md के लिए निर्भरता तथ्य ब्लॉक',
 };

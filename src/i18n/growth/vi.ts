@@ -39,4 +39,6 @@ export const vi5: Messages5 = {
   'docs.ep.eol': 'ngày hết hỗ trợ và trạng thái hỗ trợ của ~480 ngôn ngữ, runtime, framework và hệ điều hành',
   'agent.copy': 'Sao chép lệnh cài đặt',
   'agent.copied': 'Đã sao chép!',
+  'docs.ep.since': 'phiên bản chính mới, bản phát hành runtime và mô hình AI sau một ngày cắt',
+  'docs.ep.context': 'khối thông tin về dependency cho AGENTS.md / CLAUDE.md từ package.json hoặc requirements.txt',
 };

@@ -39,4 +39,6 @@ export const ko5: Messages5 = {
   'docs.ep.eol': '약 480개 언어·런타임·프레임워크·OS의 지원 종료일과 지원 상태',
   'agent.copy': '설치 명령 복사',
   'agent.copied': '복사됨!',
+  'docs.ep.since': '기준일 이후의 새 메이저 버전, 런타임 릴리스, AI 모델',
+  'docs.ep.context': 'package.json 또는 requirements.txt로 AGENTS.md / CLAUDE.md용 의존성 사실 블록 생성',
 };

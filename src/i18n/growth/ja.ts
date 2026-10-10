@@ -39,4 +39,6 @@ export const ja5: Messages5 = {
   'docs.ep.eol': '約 480 の言語・ランタイム・フレームワーク・OS のサポート終了日とサポート状況',
   'agent.copy': 'インストールコマンドをコピー',
   'agent.copied': 'コピーしました',
+  'docs.ep.since': 'カットオフ日以降の新しいメジャーバージョン、ランタイムのリリース、AI モデル',
+  'docs.ep.context': 'package.json または requirements.txt から AGENTS.md / CLAUDE.md 用の依存関係ファクトブロックを生成',
 };

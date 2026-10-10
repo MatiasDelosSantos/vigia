@@ -24,6 +24,10 @@ import { botName, classify, routeGroup, startAnalytics, stopAnalytics, track, tr
 import { BADGE_TYPES, badgeFor, badgeSvg, type BadgeType } from './api/badge.js';
 import { LOCALES, t, type Locale } from './i18n/index.js';
 import { cycleView, findProduct, listProducts, productView } from './eol.js';
+import { changesSince, parseCutoff } from './since.js';
+import { sinceHtml, sinceIndexHtml, sinceMonths } from './api/since-pages.js';
+import { buildProjectContext } from './context.js';
+import { contextHtml } from './api/context-page.js';
 import { eolCycleHtml, eolIndexHtml, eolProductHtml } from './api/eol-pages.js';
 
 const app = new Hono();
@@ -32,6 +36,13 @@ const app = new Hono();
 const CACHE_SHORT = 'public, max-age=60, stale-while-revalidate=600';
 const CACHE_LONG = 'public, max-age=3600, stale-while-revalidate=86400';
 /** Skill para agentes (también publicada en el repo como plugin de Claude Code). */
+const CONTEXT_SCRIPT = (() => {
+  try {
+    return readFileSync(new URL('../action/context.mjs', import.meta.url), 'utf8');
+  } catch {
+    return '// https://github.com/MatiasDelosSantos/vigia/blob/master/action/context.mjs\n';
+  }
+})();
 const SKILL_MD = (() => {
   try {
     return readFileSync(new URL('../skills/vigia/SKILL.md', import.meta.url), 'utf8');
@@ -223,6 +234,30 @@ app.post('/_cta', async (c) => {
   return c.body(null, 204);
 });
 
+// Qué cambió desde la fecha de corte del entrenamiento de un modelo.
+app.get('/v1/since', async (c) => {
+  const cutoff = parseCutoff(c.req.query('cutoff'));
+  if (!cutoff) return c.json({ error: 'invalid_cutoff', message: 'cutoff must be a past date between 2015 and today, as YYYY-MM or YYYY-MM-DD (e.g. 2025-06).' }, 400);
+  const ecosystems = (c.req.query('ecosystems') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 40) || 40, 1), 100);
+  c.header('cache-control', CACHE_SHORT);
+  return c.json(await changesSince({ cutoff, ecosystems, limit }));
+});
+
+// Contexto del proyecto para AGENTS.md / CLAUDE.md a partir del manifest de dependencias.
+app.post('/v1/context', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || (body.ecosystem !== 'npm' && body.ecosystem !== 'pypi') || typeof body.manifest !== 'string' || body.manifest.length > 200_000) {
+    return c.json({ error: 'invalid_body', message: 'Expected {"ecosystem":"npm"|"pypi", "manifest":"<file content>", "runtime":"node@18,python@3.9" (optional)}.' }, 400);
+  }
+  try {
+    track('checker', `context ${body.ecosystem}`);
+    return c.json(await buildProjectContext({ ecosystem: body.ecosystem, manifest: body.manifest, runtime: typeof body.runtime === 'string' ? body.runtime : undefined }));
+  } catch {
+    return c.json({ error: 'invalid_manifest', message: 'Could not parse the manifest.' }, 400);
+  }
+});
+
 // Fin de vida de lenguajes, runtimes, frameworks y sistemas (endoflife.date).
 app.get('/v1/eol', async (c) => {
   c.header('cache-control', CACHE_SHORT);
@@ -345,6 +380,7 @@ app.get('/openapi.json', (c) => {
   return c.json(openapi());
 });
 
+app.get('/context.mjs', (c) => c.body(CONTEXT_SCRIPT, 200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': CACHE_LONG }));
 app.get('/skill.md', (c) => c.text(SKILL_MD, 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_LONG }));
 app.get('/llms.txt', (c) => c.text(llmsTxt(), 200, { 'cache-control': CACHE_LONG }));
 
@@ -492,7 +528,7 @@ app.get('/sitemap.xml', (c) => {
 
 app.get('/sitemaps/eol.xml', async (c) => {
   const products = await listProducts();
-  const urls: string[] = ['/eol'];
+  const urls: string[] = ['/eol', '/context', '/since', ...sinceMonths().map((m) => `/since/${m}`)];
   for (const p of products) {
     urls.push(`/eol/${p.product}`);
     const e = await findProduct(p.product);
@@ -537,6 +573,32 @@ app.get('/sitemaps/:file', async (c) => {
     'content-type': 'application/xml; charset=utf-8',
     'cache-control': 'public, max-age=3600',
   });
+});
+
+// Páginas "qué cambió desde...": una por mes, sólo en inglés.
+app.get('/since', (c) => c.html(sinceIndexHtml(sinceMonths()), 200, { 'cache-control': CACHE_SHORT }));
+app.get('/since/:ym', async (c) => {
+  const ym = c.req.param('ym');
+  const months = sinceMonths();
+  const cutoff = months.includes(ym) ? parseCutoff(ym) : null;
+  if (!cutoff) return c.html(listPage(LOCALES[0]!, 'Month not found', 'Pick a month from the list.', c.req.path, '<p><a href="/since">All months →</a></p>'), 404, { 'cache-control': CACHE_SHORT });
+  const i = months.indexOf(ym);
+  return c.html(sinceHtml(ym, await changesSince({ cutoff, limit: 60 }), { prev: months[i - 1] ?? null, next: months[i + 1] ?? null }), 200, { 'cache-control': CACHE_SHORT });
+});
+
+// Generador de contexto para agentes (formulario web).
+app.get('/context', (c) => c.html(contextHtml({}), 200, { 'cache-control': CACHE_SHORT }));
+app.post('/context', async (c) => {
+  const form = await c.req.parseBody().catch(() => ({}) as Record<string, unknown>);
+  const ecosystem = form.ecosystem === 'pypi' ? 'pypi' : 'npm';
+  const manifest = typeof form.manifest === 'string' ? form.manifest.slice(0, 200_000) : '';
+  const runtime = typeof form.runtime === 'string' ? form.runtime.slice(0, 80) : '';
+  try {
+    track('checker', `context-web ${ecosystem}`);
+    return c.html(contextHtml({ ecosystem, manifest, runtime, result: await buildProjectContext({ ecosystem, manifest, runtime }) }), 200, { 'cache-control': 'no-store' });
+  } catch {
+    return c.html(contextHtml({ ecosystem, manifest, runtime, error: 'Could not parse the manifest. Check that it is a valid package.json or requirements.txt.' }), 400, { 'cache-control': 'no-store' });
+  }
 });
 
 // Páginas de fin de vida: sólo en inglés (las búsquedas son por nombre de producto y versión).

@@ -39,4 +39,6 @@ export const fr5: Messages5 = {
   'docs.ep.eol': 'fin de vie et état du support de ~480 langages, runtimes, frameworks et systèmes d’exploitation',
   'agent.copy': 'Copier la commande d’installation',
   'agent.copied': 'Copié !',
+  'docs.ep.since': 'nouvelles versions majeures, versions de runtimes et modèles d\'IA postérieurs à une date de coupure',
+  'docs.ep.context': 'bloc de faits sur les dépendances pour AGENTS.md / CLAUDE.md à partir d\'un package.json ou requirements.txt',
 };

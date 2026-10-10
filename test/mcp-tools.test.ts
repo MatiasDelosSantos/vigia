@@ -16,7 +16,7 @@ describe('herramientas MCP', () => {
   it('cada herramienta y cada parámetro está documentado (la calidad de las definiciones la puntúan los directorios)', async () => {
     const tools = await listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['check_dependencies', 'eol_status', 'find_compatible_version', 'find_package', 'list_versions', 'model_status', 'package_status', 'recent_changes', 'symbol_status', 'upgrade_impact', 'version_status'].sort(),
+      ['changes_since_cutoff', 'check_dependencies', 'eol_status', 'find_compatible_version', 'find_package', 'list_versions', 'model_status', 'package_status', 'recent_changes', 'symbol_status', 'upgrade_impact', 'version_status'].sort(),
     );
     for (const t of tools) {
       expect(t.description.length, `${t.name}: descripción`).toBeGreaterThan(300);

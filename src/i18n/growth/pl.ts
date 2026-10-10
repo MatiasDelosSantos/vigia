@@ -39,4 +39,6 @@ export const pl5: Messages5 = {
   'docs.ep.eol': 'koniec wsparcia i status wsparcia ~480 języków, środowisk uruchomieniowych, frameworków i systemów operacyjnych',
   'agent.copy': 'Skopiuj polecenie instalacji',
   'agent.copied': 'Skopiowano!',
+  'docs.ep.since': 'nowe wersje główne, wydania środowisk uruchomieniowych i modele AI po dacie odcięcia',
+  'docs.ep.context': 'blok faktów o zależnościach dla AGENTS.md / CLAUDE.md z pliku package.json lub requirements.txt',
 };

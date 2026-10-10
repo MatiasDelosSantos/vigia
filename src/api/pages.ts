@@ -386,6 +386,8 @@ const ENDPOINTS: Array<[string, AnyKey]> = [
   ['POST /v1/check', 'docs.ep.check'],
   ['GET /v1/models · GET /v1/models/{id}', 'docs.ep.models'],
   ['GET /v1/eol · GET /v1/eol/{product}/{version}', 'docs.ep.eol'],
+  ['GET /v1/since?cutoff=2025-06', 'docs.ep.since'],
+  ['POST /v1/context', 'docs.ep.context'],
   ['GET /v1/changes?since={seq}', 'docs.ep.changes'],
   ['GET /v1/search?q=', 'docs.ep.search'],
   ['GET /v1/facts/{hash}', 'docs.ep.facts'],
@@ -467,6 +469,8 @@ export function llmsTxt(): string {
 - [Upgrade guides](${u}/upgrade): breaking-change reports between major versions
 - [Check dependencies](${u}/docs.md): POST /v1/check
 - [AI models](${u}/v1/models): prices, context windows and retirement dates
+- [What changed since a date](${u}/v1/since?cutoff=2025-06): new major versions, runtime releases and AI models after your training cutoff (call once per session)
+- [Project context generator](${u}/context): paste package.json/requirements.txt, get a block for AGENTS.md/CLAUDE.md (API: POST /v1/context; script: ${u}/context.mjs)
 - [End-of-life dates](${u}/v1/eol/python/3.9): is a language/runtime/framework/OS version still supported? GET /v1/eol/{product}/{version} (~480 products; list at ${u}/v1/eol)
 - [Recent changes](${u}/v1/changes): changefeed
 

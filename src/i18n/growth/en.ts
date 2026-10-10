@@ -38,6 +38,8 @@ export const en5 = {
   'docs.ep.eol': 'end-of-life and support status of ~480 languages, runtimes, frameworks and operating systems',
   'agent.copy': 'Copy install command',
   'agent.copied': 'Copied!',
+  'docs.ep.since': 'new major versions, runtime releases and AI models after a training cutoff date',
+  'docs.ep.context': 'dependency facts block for AGENTS.md / CLAUDE.md from a package.json or requirements.txt',
 } as const;
 
 export type Message5Key = keyof typeof en5;

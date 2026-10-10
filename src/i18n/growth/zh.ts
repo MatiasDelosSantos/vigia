@@ -39,4 +39,6 @@ export const zh5: Messages5 = {
   'docs.ep.eol': '约 480 种语言、运行时、框架和操作系统的生命周期终止日期与支持状态',
   'agent.copy': '复制安装命令',
   'agent.copied': '已复制！',
+  'docs.ep.since': '截止日期之后的新主版本、运行时发布和 AI 模型',
+  'docs.ep.context': '根据 package.json 或 requirements.txt 生成 AGENTS.md / CLAUDE.md 的依赖事实块',
 };

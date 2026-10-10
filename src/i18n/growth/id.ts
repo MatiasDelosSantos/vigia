@@ -39,4 +39,6 @@ export const id5: Messages5 = {
   'docs.ep.eol': 'akhir masa dukungan dan status dukungan ~480 bahasa, runtime, framework, dan sistem operasi',
   'agent.copy': 'Salin perintah instalasi',
   'agent.copied': 'Disalin!',
+  'docs.ep.since': 'versi mayor baru, rilis runtime, dan model AI setelah tanggal batas',
+  'docs.ep.context': 'blok fakta dependensi untuk AGENTS.md / CLAUDE.md dari package.json atau requirements.txt',
 };
