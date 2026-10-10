@@ -50,3 +50,11 @@ describe('packagist', () => {
     expect(splitPackagePath('packagist/acme/versions/versions/1.0.0')).toMatchObject({ name: 'acme/versions', suffix: 'version', version: '1.0.0' });
   });
 });
+
+describe('packagist: versiones raras', () => {
+  it('descarta versiones con ceros a la izquierda en lugar de fallar', () => {
+    expect(semverOf('4.04')).toBeNull();
+    expect(semverOf('3.03')).toBeNull();
+    expect(semverOf('4.4')).toBe('4.4.0');
+  });
+});

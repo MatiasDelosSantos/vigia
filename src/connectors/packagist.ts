@@ -32,7 +32,11 @@ export function expandMinified(list: Array<Record<string, any>>): Array<Record<s
 export function semverOf(raw: string): string | null {
   const s = raw.trim().replace(/^v/i, '');
   if (semver.valid(s)) return s;
-  if (/^\d+\.\d+$/.test(s)) return `${s}.0`;
+  if (/^\d+\.\d+$/.test(s)) {
+    // "4.04" no es semver válido ("4.04.0" tiene un cero a la izquierda): se descarta en vez de romper todo el paquete.
+    const x = `${s}.0`;
+    return semver.valid(x) ? x : null;
+  }
   return null;
 }
 
