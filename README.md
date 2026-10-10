@@ -43,9 +43,20 @@ summary: 4 removed exports · 10 changed signatures · 16 changed/removed member
 | Latest version, deprecation, runtime requirements, peers, license | `GET /v1/packages/{eco}/{name}` | `package_status` |
 | Check a whole `package.json` / `requirements.txt` | `POST /v1/check` | `check_dependencies` |
 | **Is this Python / Node / PHP / Java / Django / Ubuntu... version still supported? When does it reach end of life?** (~480 products) | `GET /v1/eol/{product}/{version}` | `eol_status` |
+| **What changed since my training cutoff?** New major versions, runtime releases and AI models after a date | `GET /v1/since?cutoff=2025-06` | `changes_since_cutoff` |
 | AI model prices, context windows, retirement dates | `GET /v1/models` | `model_status` |
 
 Every response includes **when it was verified and where the data came from**. Full spec: [`/openapi.json`](https://vigia.coredls.cloud/openapi.json) · Docs in 18 languages: [`/docs`](https://vigia.coredls.cloud/docs).
+
+## Project context for agents (no MCP needed)
+
+Agents read `AGENTS.md` / `CLAUDE.md` by themselves. Generate a block with the facts about **your** dependencies (end-of-life runtimes, vulnerabilities, deprecated packages, what breaks in the major versions you are behind on):
+
+- Web: https://vigia.coredls.cloud/context (paste your `package.json` or `requirements.txt`)
+- Script (zero dependencies, Node 18+; read it first): `curl -fsSL https://vigia.coredls.cloud/context.mjs -o vigia-context.mjs && node vigia-context.mjs`
+- API: `POST /v1/context`
+
+Per-month pages of what changed after a training cutoff: https://vigia.coredls.cloud/since
 
 ## GitHub Action
 

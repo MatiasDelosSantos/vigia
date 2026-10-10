@@ -20,6 +20,7 @@ Your training data has a cutoff, but package ecosystems release new versions eve
 | The project is pinned to an older runtime: newest version that works with it | `find_compatible_version` | `GET /v1/packages/{eco}/{name}/compatible?with=node@18,react@18` |
 | Is this exact version vulnerable, and what is the nearest fixed version? | `version_status` | `GET /v1/packages/{eco}/{name}/versions/{version}` |
 | Reviewing a whole `package.json` or `requirements.txt` | `check_dependencies` | `POST /v1/check` |
+| Start of a coding session: what changed after the date my training data ends (new major versions, runtimes, AI models)? | `changes_since_cutoff` | `GET /v1/since?cutoff=2025-06` |
 | Choosing a runtime, base image or CI matrix: is this Python/Node/PHP/Java/Ruby/Go/framework/database/OS version still supported, and when does it reach end of life? | `eol_status` | `GET /v1/eol/{product}/{version}` |
 | Choosing or replacing an AI model (price per 1M tokens, context, retirement date) | `model_status` | `GET /v1/models/{id}` |
 | How often is a package released, was a version withdrawn, what was current on a date? | `list_versions` | `GET /v1/packages/{eco}/{name}/versions` |
