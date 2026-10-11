@@ -28,7 +28,11 @@ async function readStdin() {
   }
 }
 
+// Claude Code limita cada additionalContext a 10.000 caracteres: se corta en un salto de línea antes de ese tope.
+const MAX_CONTEXT = 9500;
+
 function emit(eventName, text) {
+  if (text.length > MAX_CONTEXT) text = `${text.slice(0, text.lastIndexOf('\n', MAX_CONTEXT))}\n…(shortened; regenerate the full block at ${base}/context)`;
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: eventName, additionalContext: text } }));
 }
 
