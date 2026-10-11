@@ -56,6 +56,8 @@ Agents read `AGENTS.md` / `CLAUDE.md` by themselves. Generate a block with the f
 - Script (zero dependencies, Node 18+; read it first): `curl -fsSL https://vigia.coredls.cloud/context.mjs -o vigia-context.mjs && node vigia-context.mjs`
 - API: `POST /v1/context`
 
+**Claude Code: automatic.** The plugin includes hooks that give the agent these facts at session start and re-check whenever it edits `package.json` or `requirements.txt` (so it learns that Node 18 is end of life, or that `lodash` has known vulnerabilities, without calling any tool). The manifest is sent to Vigia and not stored; set `VIGIA_DISABLE=1` to turn the hooks off. Without the plugin, copy [`examples/claude-code-settings.json`](examples/claude-code-settings.json) into `.claude/settings.json` and point it at `hooks/vigia-hook.mjs`.
+
 Per-month pages of what changed after a training cutoff: https://vigia.coredls.cloud/since
 
 ## GitHub Action

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [{ "type": "command", "command": "node /path/to/vigia/hooks/vigia-hook.mjs session", "timeout": 40 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node /path/to/vigia/hooks/vigia-hook.mjs edit", "timeout": 40 }]
+      }
+    ]
+  }
+}

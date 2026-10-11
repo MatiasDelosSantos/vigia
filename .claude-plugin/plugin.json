@@ -1,7 +1,7 @@
 {
   "name": "vigia",
-  "version": "0.6.0",
-  "description": "Version-accurate facts for coding agents: what breaks between package versions, whether an API exists in the installed version, compatible versions and per-version vulnerabilities (npm, PyPI), plus AI model prices.",
+  "version": "0.7.0",
+  "description": "Version-accurate facts for coding agents: what breaks between package versions, whether an API exists in the installed version, compatible versions and per-version vulnerabilities (npm, PyPI), plus AI model prices. Includes hooks that give the agent verified facts about the project's dependencies at session start and when package.json or requirements.txt changes.",
   "author": { "name": "Matias de los Santos", "url": "https://github.com/MatiasDelosSantos" },
   "homepage": "https://vigia.coredls.cloud",
   "repository": "https://github.com/MatiasDelosSantos/vigia",

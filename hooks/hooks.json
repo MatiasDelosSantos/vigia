@@ -1,0 +1,17 @@
+{
+  "description": "Vigia: gives the agent verified facts about the project's dependencies (end-of-life runtimes, vulnerabilities, deprecated packages, breaking changes) at session start and whenever package.json or requirements.txt changes.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/vigia-hook.mjs\" session", "timeout": 40 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/vigia-hook.mjs\" edit", "timeout": 40 }]
+      }
+    ]
+  }
+}
