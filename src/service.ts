@@ -6,6 +6,13 @@ import { canonicalName, entityKey, type Ecosystem } from './util.js';
 import { compareVersions, maintenanceOf, majorOf, recentVersions } from './versions.js';
 import { vulnsForVersion } from './osv.js';
 
+/** Quien consume la API REST (un agente con acceso web, por ejemplo) puede preferir las herramientas MCP: se le dice, sin adornos. */
+export const MCP_HINT = {
+  server: `${config.publicUrl}/mcp`,
+  install: `claude mcp add --transport http vigia ${config.publicUrl}/mcp`,
+  note: 'The same verified data is also available as an MCP server for AI coding assistants: 12 read-only tools, no API key.',
+};
+
 export const DATA_LICENSE = "CC-BY-4.0 (Vigia); upstream data remains under each source's terms";
 
 const inflight = new Map<string, Promise<EntityRow | null>>();
@@ -114,6 +121,7 @@ export async function packageView(entity: EntityRow, asOf?: Date): Promise<Packa
       sources,
       untrusted_text_fields: ['description', 'deprecation.message', 'yanked.reason'],
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
       docs: `${config.publicUrl}/docs`,
     },
   };
@@ -158,6 +166,7 @@ export async function modelView(entity: EntityRow, asOf?: Date) {
       note: "Reference prices from OpenRouter (aggregator); they may differ from the provider's direct pricing.",
       untrusted_text_fields: ['name'],
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }
@@ -260,6 +269,7 @@ export async function versionList(entity: EntityRow, limit: number, stableOnly =
       withdrawn_means: entity.ecosystem === 'npm' ? 'deprecated on npm' : entity.ecosystem === 'crates' ? 'yanked on crates.io' : entity.ecosystem === 'packagist' ? 'marked abandoned on Packagist' : 'all files yanked on PyPI',
       source: VERSIONS_SOURCE(entity.ecosystem, entity.name),
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }
@@ -315,6 +325,7 @@ export async function versionStatus(entity: EntityRow, version: string) {
       ],
       untrusted_text_fields: ['vulnerabilities[].summary'],
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }

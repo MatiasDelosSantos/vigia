@@ -5,7 +5,7 @@ import { config } from './config.js';
 import { factsOf, type EntityRow } from './facts.js';
 import { enqueueSnapshot, getSnapshot, jobState, queuePosition } from './analysis.js';
 import { changelogBetween, checkVersion, diffSurfaces, sortDesc, type Constraint } from './upgrade.js';
-import { DATA_LICENSE } from './service.js';
+import { DATA_LICENSE, MCP_HINT } from './service.js';
 import type { Ecosystem } from './util.js';
 
 interface VRow {
@@ -100,6 +100,7 @@ export async function compatibleVersion(entity: EntityRow, constraints: Constrai
             : 'Highest stable, non-yanked version whose Requires-Python admits the constraint. Versions without Requires-Python are listed in "unverified".',
       sources: eco === 'npm' ? ['https://registry.npmjs.org', 'https://deps.dev'] : eco === 'crates' ? [`https://crates.io/api/v1/crates/${entity.name}`] : eco === 'packagist' ? [`https://repo.packagist.org/p2/${entity.name}.json`] : [`https://pypi.org/pypi/${entity.name}/json`],
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }
@@ -216,6 +217,7 @@ export async function upgradeReport(entity: EntityRow, fromSpec: string | undefi
       untrusted_text_fields: ['changelog[].text', 'newly_deprecated[].message'],
       page: `${config.publicUrl}/upgrade/npm/${entity.name}/${semver.major(from)}-to-${semver.major(to)}`,
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }
@@ -269,6 +271,7 @@ export async function symbolStatus(entity: EntityRow, symbol: string, versionSpe
       method: 'Looked up in the exported TypeScript declarations of that exact version (no code executed).',
       untrusted_text_fields: ['matches[].deprecation_message'],
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }

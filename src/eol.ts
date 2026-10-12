@@ -1,6 +1,6 @@
 import { pool } from './db.js';
 import { factsOf, type EntityRow } from './facts.js';
-import { DATA_LICENSE } from './service.js';
+import { DATA_LICENSE, MCP_HINT } from './service.js';
 import type { EolCycle } from './connectors/eol.js';
 
 export type CycleStatus = 'upcoming' | 'supported' | 'security_only' | 'end_of_life';
@@ -104,6 +104,7 @@ export async function productView(entity: EntityRow) {
       source: `https://endoflife.date/${entity.name}`,
       note: 'Dates are published by the project (via endoflife.date). status is computed on every request from today\'s date; "security_only" means active support ended but security fixes continue until end of life.',
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }

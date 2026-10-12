@@ -1,5 +1,5 @@
 import { pool } from './db.js';
-import { DATA_LICENSE } from './service.js';
+import { DATA_LICENSE, MCP_HINT } from './service.js';
 import { compareVersions, majorOf } from './versions.js';
 import { availableGuides } from './intel.js';
 import type { EolCycle } from './connectors/eol.js';
@@ -235,6 +235,7 @@ export async function changesSince(opts: { cutoff: Date; ecosystems?: string[]; 
       limits: ['Deprecations after the cutoff are only detected from the date Vigia began tracking, so they are not listed here.', 'Dates are publication dates from the registries, in UTC.'],
       next: 'For one package use upgrade_impact (npm) or package_status; for a runtime use eol_status.',
       license: DATA_LICENSE,
+      mcp: MCP_HINT,
     },
   };
 }

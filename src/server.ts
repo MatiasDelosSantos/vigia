@@ -227,11 +227,37 @@ app.get('/v1/models/*', async (c) => {
 // Clics en los botones de instalación (navigator.sendBeacon): sólo "botón|variante", sin datos personales ni cookies.
 app.post('/_cta', async (c) => {
   const body = (await c.req.text().catch(() => '')).slice(0, 40);
-  if (/^(copy|cursor|vscode|star|skill|action)\|[a-z0-9]{1,3}$/.test(body) && classify(c.req.header('user-agent')) === 'human') {
+  if (/^(copy|cursor|vscode|star|skill|action|prompt|check|feed|context|install)\|[a-z0-9]{1,3}$/.test(body) && classify(c.req.header('user-agent')) === 'human') {
     const [cta, variant] = body.split('|');
     track('cta', `${variant} ${cta}`);
   }
   return c.body(null, 204);
+});
+
+// Feed Atom por paquete: una entrada por versión estable reciente (suscripción para personas, lectores y agentes).
+app.get('/feed/package/*', async (c) => {
+  const m = /^(npm|pypi|crates|packagist)\/(.+)\.atom$/.exec(decodeURIComponent(c.req.path.slice('/feed/package/'.length)));
+  const name = m ? canonicalName(m[1] as Ecosystem, m[2]!) : null;
+  if (!m || !name) return c.text('Usage: /feed/package/{npm|pypi|crates|packagist}/{name}.atom', 400);
+  const entity = await resolvePackage(m[1] as Ecosystem, name, false);
+  if (!entity) return c.text('Package not tracked', 404);
+  const versions = await recentVersions(pool, entity.id, 30, true);
+  const page = `${config.publicUrl}/${m[1]}/${name}`;
+  const xml = atom({
+    id: `${page}.atom`,
+    title: `${name} (${m[1]}): new versions — Vigia`,
+    subtitle: `New stable releases of ${name}, detected automatically.`,
+    self: `${config.publicUrl}/feed/package/${m[1]}/${name}.atom`,
+    alternate: page,
+    entries: versions.map((v) => ({
+      id: `${page}#${v.version}`,
+      title: `${name} ${v.version} released${v.withdrawn ? ' (withdrawn)' : ''}`,
+      link: page,
+      updated: (v.published_at ?? new Date()).toISOString(),
+      summary: `${name} ${v.version} was published${v.published_at ? ` on ${v.published_at.toISOString().slice(0, 10)}` : ''}. Verified facts: ${page}`,
+    })),
+  });
+  return c.body(xml, 200, { 'content-type': 'application/atom+xml; charset=utf-8', 'cache-control': 'public, max-age=900' });
 });
 
 // Qué cambió desde la fecha de corte del entrenamiento de un modelo.
@@ -741,7 +767,7 @@ function registerPages(L: Locale): void {
         );
       }
       const view = await packageView(entity);
-      if (!md && classify(c.req.header('user-agent')) === 'human') track('ab_view', ctaVariant(`/${eco}/${name}`));
+      if (!md && classify(c.req.header('user-agent')) === 'human') track('ab_view', L.code === 'en' ? ctaVariant(`/${eco}/${name}`) : 'a');
       if (md) return c.text(packageMarkdown(view), 200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': CACHE_SHORT });
       const history = (await packageHistory(entity, 30)).data.changes;
       const peers = Object.keys((view.data as any).requires?.peer_dependencies ?? {});
