@@ -1064,7 +1064,7 @@ ${agentSection(L)}
 
 export function modelsIndexPage(L: Locale, models: any[]): string {
   const counts = new Map<string, number>();
-  for (const m of models) if (m.provider) counts.set(m.provider, (counts.get(m.provider) ?? 0) + 1);
+  for (const m of models) if (m.provider && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(m.provider)) counts.set(m.provider, (counts.get(m.provider) ?? 0) + 1);
   const providers = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const bc = crumbs(L, [[t(L, 'model.crumb'), null]]);
   const body = `${bc.html}<h1>${esc(t(L, 'list.modelsTitle'))}</h1><p class="muted">${esc(t(L, 'list.modelsIntro'))}</p>

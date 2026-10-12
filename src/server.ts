@@ -578,6 +578,7 @@ app.get('/sitemaps/:file', async (c) => {
   const r = await pool.query<{ ecosystem: string; name: string; lm: Date }>(
     `SELECT ecosystem, name, COALESCE(last_changed_at, last_checked_at) AS lm FROM entity
      WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL AND ($1 OR popularity_rank <= $2)
+       AND NOT EXISTS (SELECT 1 FROM fact x WHERE x.entity_id = entity.id AND x.predicate = 'exists' AND x.recorded_to IS NULL AND x.value = 'false'::jsonb)
      ORDER BY popularity_rank NULLS LAST LIMIT 48000`,
     [L.code === 'en', localizedTop],
   );
@@ -590,7 +591,7 @@ app.get('/sitemaps/:file', async (c) => {
   const guides = await availableGuides(5000);
   const guidePaths = guides.filter((g) => L.code === 'en' || guides.indexOf(g) < 300).map((g) => `/upgrade/npm/${g.name}/${g.from}-to-${g.to}`);
   const models = await listModels({ limit: 2000 });
-  const providerPaths = [...new Set(models.map((m: any) => m.provider).filter(Boolean))].map((x) => `/models/${x}`);
+  const providerPaths = [...new Set(models.map((m: any) => m.provider).filter((p: unknown) => typeof p === 'string' && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(p)))].map((x) => `/models/${x}`);
   const modelPaths = L.code === 'en' ? models.map((m: any) => `/models/${m.id}`) : [];
   const urls = ['/', '/check', '/upgrade', ...(L.code === 'en' ? ['/weekly'] : []), '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths, ...providerPaths, ...modelPaths]
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)

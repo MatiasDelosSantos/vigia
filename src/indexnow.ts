@@ -32,6 +32,7 @@ export async function submitIndexNow(): Promise<number> {
   const r = await pool.query<{ ecosystem: string; name: string; rank: number | null }>(
     `SELECT ecosystem, name, popularity_rank AS rank FROM entity
      WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM fact x WHERE x.entity_id = entity.id AND x.predicate = 'exists' AND x.recorded_to IS NULL AND x.value = 'false'::jsonb)
        AND ($1::timestamptz IS NULL OR last_changed_at > $1 OR created_at > $1)
      ORDER BY popularity_rank NULLS LAST LIMIT 50000`,
     [since],

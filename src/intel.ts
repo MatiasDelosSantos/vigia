@@ -291,6 +291,7 @@ export async function availableGuides(limit = 500) {
     for (const v of row.versions.filter((x) => semver.valid(x)).sort(semver.compare)) byMajor.set(semver.major(v), v);
     const majors = [...byMajor.keys()].sort((x, y) => x - y);
     for (let i = 1; i < majors.length; i++) {
+      if (majors[i - 1]! < 1 || majors[i]! - majors[i - 1]! > 2) continue;
       out.push({ name: row.name, from: majors[i - 1]!, to: majors[i]!, fromVersion: byMajor.get(majors[i - 1]!)!, toVersion: byMajor.get(majors[i]!)! });
     }
   }
