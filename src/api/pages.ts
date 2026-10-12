@@ -55,7 +55,7 @@ export function crumbs(L: Locale, items: Array<[label: string, path: string | nu
 
 export function layout(
   L: Locale,
-  opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string; singleLanguage?: boolean; variant?: string; feed?: string },
+  opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string; singleLanguage?: boolean; variant?: string; feed?: string; noindex?: boolean },
 ): string {
   const url = localeUrl(L, opts.path);
   const alternates = opts.singleLanguage ? '' : LOCALES.map((x) => `<link rel="alternate" hreflang="${x.lang}" href="${esc(localeUrl(x, opts.path))}">`).join('');
@@ -75,7 +75,7 @@ export function layout(
     .map(([p, c]) => `<meta property="${p}" content="${esc(c)}">`)
     .join('');
   return `<!doctype html><html lang="${L.lang}" dir="${L.dir}"${opts.variant ? ` data-v="${esc(opts.variant)}"` : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(opts.title)}</title><meta name="description" content="${esc(opts.description)}"><link rel="canonical" href="${esc(url)}">
+${opts.noindex ? '<meta name="robots" content="noindex, follow">' : ''}<title>${esc(opts.title)}</title><meta name="description" content="${esc(opts.description)}"><link rel="canonical" href="${esc(url)}">
 ${alternates}${opts.singleLanguage ? '' : `<link rel="alternate" hreflang="x-default" href="${esc(localeUrl(LOCALES[0]!, opts.path))}">`}
 ${opts.mdPath ? `<link rel="alternate" type="text/markdown" href="${esc(config.publicUrl + opts.mdPath)}">` : ''}
 <link rel="alternate" type="application/json" href="${esc(config.publicUrl)}/openapi.json" title="OpenAPI">
@@ -111,7 +111,15 @@ const statusLabel = (L: Locale, s: string) => esc(t(L, `status.${s}` as AnyKey) 
 const ECO_LABEL = { npm: 'npm', pypi: 'PyPI', crates: 'crates.io', packagist: 'Packagist' } as const;
 const pkgPath = (d: any) => `/${d.ecosystem}/${d.entity.slice(d.ecosystem.length + 1)}`;
 
+/**
+ * Sólo los paquetes más populares tienen versiones traducidas indexables. El resto existe en los 18 idiomas para quien
+ * navega, pero sin hreflang y con noindex fuera del inglés: Google tenía ~92.000 páginas "descubiertas, sin indexar",
+ * casi todas copias traducidas de paquetes poco buscados, y eso le resta rastreo a las páginas que sí traen visitas.
+ */
+export const LOCALIZED_TOP = Number(process.env.SITEMAP_LOCALIZED_TOP ?? 300);
+
 export interface PackageExtras {
+  rank?: number | null;
   versions: Array<{ version: string; published_at: Date | null; prerelease: boolean; withdrawn: boolean }>;
   related: Array<{ ecosystem: string; name: string }>;
   compat?: Array<{ target: string; version: string | null }>;
@@ -280,6 +288,8 @@ GET ${esc(config.publicUrl)}/v1/packages${esc(path)}/versions/{version}</pre>`;
     mdPath: `${path}.md`,
     body,
     variant,
+    singleLanguage: (extras.rank ?? Infinity) > LOCALIZED_TOP,
+    noindex: L.code !== 'en' && (extras.rank ?? Infinity) > LOCALIZED_TOP,
     feed: `${config.publicUrl}/feed/package/${eco}/${d.entity.slice(eco.length + 1)}.atom`,
     ld: [
       {

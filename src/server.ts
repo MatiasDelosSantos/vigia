@@ -777,7 +777,7 @@ function registerPages(L: Locale): void {
         compatibilityTable(entity),
         eco === 'npm' ? guidesFor(entity.id) : Promise.resolve([]),
       ]);
-      return html(c, packageHtml(L, view, history, { versions, related, compat, guides }), view.data.status === 'not_found_in_registry' ? 404 : 200);
+      return html(c, packageHtml(L, view, history, { versions, related, compat, guides, rank: entity.popularity_rank }), view.data.status === 'not_found_in_registry' ? 404 : 200);
     });
   }
 }

@@ -40,7 +40,8 @@ export type DecoratedCycle = ReturnType<typeof decorate>;
  * Gana el ciclo más específico (el de nombre más largo) que sea prefijo de la versión.
  */
 export function matchCycle<T extends { cycle: string }>(cycles: T[], version: string): T | null {
-  const v = version.trim().replace(/^v/i, '').toLowerCase();
+  // Sólo se quita una "v" seguida de un número ("v18" → "18"); hay ciclos que empiezan con v ("voyage-7", "ventura").
+  const v = version.trim().replace(/^v(?=\d)/i, '').toLowerCase();
   const exact = cycles.find((c) => c.cycle.toLowerCase() === v);
   if (exact) return exact;
   let best: T | null = null;

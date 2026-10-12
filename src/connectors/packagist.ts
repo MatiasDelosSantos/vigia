@@ -30,7 +30,7 @@ export function expandMinified(list: Array<Record<string, any>>): Array<Record<s
 
 /** "v13.35.0" → "13.35.0", "1.2" → "1.2.0"; null si no es una versión semver utilizable. */
 export function semverOf(raw: string): string | null {
-  const s = raw.trim().replace(/^v/i, '');
+  const s = raw.trim().replace(/^v(?=\d)/i, '');
   if (semver.valid(s)) return s;
   if (/^\d+\.\d+$/.test(s)) {
     // "4.04" no es semver válido ("4.04.0" tiene un cero a la izquierda): se descarta en vez de romper todo el paquete.

@@ -33,6 +33,9 @@ describe('eol', () => {
     expect(matchCycle(cs, '3.9')?.cycle).toBe('3.9');
     expect(matchCycle(cs, '4.0')).toBeNull();
     expect(matchCycle(cs, '180')).toBeNull();
+    // ciclos cuyo nombre empieza con v
+    expect(matchCycle([{ cycle: 'voyage-7' }, { cycle: 'ventura' }], 'voyage-7')?.cycle).toBe('voyage-7');
+    expect(matchCycle([{ cycle: 'ventura' }], 'Ventura')?.cycle).toBe('ventura');
   });
 
   it('normaliza la respuesta de endoflife.date', () => {
