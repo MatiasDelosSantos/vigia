@@ -593,7 +593,10 @@ app.get('/sitemaps/:file', async (c) => {
   const models = await listModels({ limit: 2000 });
   const providerPaths = [...new Set(models.map((m: any) => m.provider).filter((p: unknown) => typeof p === 'string' && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(p)))].map((x) => `/models/${x}`);
   const modelPaths = L.code === 'en' ? models.map((m: any) => `/models/${m.id}`) : [];
-  const urls = ['/', '/check', '/upgrade', ...(L.code === 'en' ? ['/weekly'] : []), '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths, ...providerPaths, ...modelPaths]
+  // Traducciones: sólo las páginas generales (ver translatedIndexable); el inglés lleva todo.
+  const urls = (L.code === 'en'
+    ? ['/', '/check', '/upgrade', '/weekly', '/docs', '/models', '/changes', '/status', ...browsePaths, ...guidePaths, ...providerPaths, ...modelPaths]
+    : ['/', '/check', '/upgrade', '/docs', '/models', ...browsePaths.filter((p) => !p.includes('?page='))])
     .map((p) => `<url><loc>${esc(localeUrl(L, p))}</loc></url>`)
     .concat(r.rows.map((x) => `<url><loc>${esc(localeUrl(L, `/${x.ecosystem}/${x.name}`))}</loc><lastmod>${x.lm.toISOString()}</lastmod></url>`));
   return c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join('')}</urlset>`, 200, {

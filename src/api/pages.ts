@@ -53,11 +53,23 @@ export function crumbs(L: Locale, items: Array<[label: string, path: string | nu
   return { html, ld };
 }
 
+/** Páginas cuya traducción vale la pena indexar: inicio, revisor, documentación e índices (primera página). */
+export function translatedIndexable(path: string): boolean {
+  if (path.includes('?page=')) return false;
+  if (/^\/(changes|status)$/.test(path)) return false;
+  return !/^\/(models|upgrade|npm|pypi|crates|packagist)\/./.test(path);
+}
+
 export function layout(
   L: Locale,
   opts: { title: string; description: string; path: string; body: string; ld?: unknown; mdPath?: string; singleLanguage?: boolean; variant?: string; feed?: string; noindex?: boolean },
 ): string {
   const url = localeUrl(L, opts.path);
+  // Google rechazaba las traducciones de páginas de datos (paquetes, modelos, guías) como copias del inglés.
+  // Sólo las páginas generales se ofrecen traducidas; el resto existe en los 18 idiomas pero sin hreflang y, fuera del inglés, con noindex.
+  if (!translatedIndexable(opts.path)) {
+    opts = { ...opts, singleLanguage: true, noindex: opts.noindex || L.code !== 'en' };
+  }
   const alternates = opts.singleLanguage ? '' : LOCALES.map((x) => `<link rel="alternate" hreflang="${x.lang}" href="${esc(localeUrl(x, opts.path))}">`).join('');
   const langLinks = opts.singleLanguage ? '' : LOCALES.map(
     (x) => `<a href="${esc(localeUrl(x, opts.path))}" hreflang="${x.lang}" lang="${x.lang}"${x === L ? ' aria-current="page"' : ''}>${esc(x.name)}</a>`,
