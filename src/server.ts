@@ -227,7 +227,7 @@ app.get('/v1/models/*', async (c) => {
 // Clics en los botones de instalación (navigator.sendBeacon): sólo "botón|variante", sin datos personales ni cookies.
 app.post('/_cta', async (c) => {
   const body = (await c.req.text().catch(() => '')).slice(0, 40);
-  if (/^(copy|cursor|vscode|star|skill|action|prompt|check|feed|context|install)\|[a-z0-9]{1,3}$/.test(body) && classify(c.req.header('user-agent')) === 'human') {
+  if (/^(view|copy|cursor|vscode|star|skill|action|prompt|check|feed|context|install)\|[a-z0-9]{1,3}$/.test(body) && classify(c.req.header('user-agent')) === 'human') {
     const [cta, variant] = body.split('|');
     track('cta', `${variant} ${cta}`);
   }

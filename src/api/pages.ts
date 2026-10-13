@@ -114,8 +114,11 @@ export function ctaVariant(path: string): 'a' | 'f' | 'g' {
   return (['a', 'f', 'g'] as const)[h % 3]!;
 }
 
-/** Cuenta clics en los botones de instalación (sin datos personales: sólo "botón|variante") y copia el comando. */
-const CTA_SCRIPT = `<script>document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-cta]');if(!t)return;var c=t.getAttribute('data-copy');if(c&&navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var o=t.textContent;t.textContent=t.getAttribute('data-done')||'OK';setTimeout(function(){t.textContent=o},1500)})}try{navigator.sendBeacon('/_cta',t.getAttribute('data-cta')+'|'+(document.documentElement.getAttribute('data-v')||'x'))}catch(_){}})</script>`;
+/**
+ * Cuenta vistas que ejecutan JavaScript (los scrapers que falsifican el referer de Google casi nunca lo hacen) y clics en
+ * los botones de instalación. Sin datos personales: sólo "evento|variante". También copia el comando.
+ */
+const CTA_SCRIPT = `<script>try{navigator.sendBeacon('/_cta','view|'+(document.documentElement.getAttribute('data-v')||'x'))}catch(_){}document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-cta]');if(!t)return;var c=t.getAttribute('data-copy');if(c&&navigator.clipboard){navigator.clipboard.writeText(c).then(function(){var o=t.textContent;t.textContent=t.getAttribute('data-done')||'OK';setTimeout(function(){t.textContent=o},1500)})}try{navigator.sendBeacon('/_cta',t.getAttribute('data-cta')+'|'+(document.documentElement.getAttribute('data-v')||'x'))}catch(_){}})</script>`;
 
 const fmtDate = (s: unknown) => (s ? `<span dir="ltr">${esc(String(s).replace('T', ' ').replace(/\.\d+Z$|Z$/, ' UTC'))}</span>` : '<span class="muted">—</span>');
 const row = (k: string, v: string) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`;
