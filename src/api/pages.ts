@@ -232,6 +232,7 @@ ${bc.html}
 <p class="muted">${esc(ecoLabel)} · <span dir="ltr">${esc(d.entity)}</span></p>
 <h1><span dir="ltr">${esc(d.name)}</span> <span class="badge ${esc(d.status)}">${statusLabel(L, d.status)}</span></h1>
 ${d.description ? `<p dir="auto" lang="und">${esc(d.description)}</p>` : ''}
+${faq[0] && latest.version ? `<p class="answer"><strong>${esc(faq[0][1])}</strong></p>` : ''}
 <div class="card"><table>
 ${row(t(L, 'pkg.latest'), `<strong dir="ltr">${esc(latest.version ?? '—')}</strong>`)}
 ${row(t(L, 'pkg.published'), fmtDate(latest.published_at))}
@@ -1030,6 +1031,7 @@ export function modelPage(L: Locale, view: any, siblings: any[]): string {
 <p class="muted">${esc(t(L, 'model.kind'))} · ${d.provider ? `<a href="${L.prefix}/models/${esc(d.provider)}">${esc(prov)}</a>` : '—'}</p>
 <h1><span dir="ltr">${esc(d.name)}</span> <span class="badge ${esc(d.status)}">${statusLabel(L, d.status)}</span></h1>
 <p><code>${esc(d.id)}</code></p>
+<p class="answer"><strong>${esc(faq[0]![1])}</strong></p>
 <div class="card"><table>
 ${row(t(L, 'model.input'), priceCell(p.input))}
 ${row(t(L, 'model.output'), priceCell(p.output))}
