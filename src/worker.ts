@@ -123,12 +123,21 @@ async function analysisLoop(): Promise<void> {
   // La primera pregeneración espera 5 min para no competir con el arranque.
   let lastPregen = Date.now() - PREGEN_EVERY_MS + 5 * 60_000;
   let lastMajorScan = 0;
+  let lastCleanup = 0;
   while (!stopping) {
     if (Date.now() - lastPregen > PREGEN_EVERY_MS) {
       lastPregen = Date.now();
       await scheduleTopUpgrades(300)
         .then((n) => n && console.log(`pregeneración: ${n} análisis encolados`))
         .catch((err) => console.error('pregeneración falló:', err instanceof Error ? err.message : err));
+    }
+    // Una vez por día: los visitantes únicos (hashes) sólo sirven para el conteo reciente.
+    if (Date.now() - lastCleanup > 24 * 3600_000) {
+      lastCleanup = Date.now();
+      await pool
+        .query(`DELETE FROM visitor_daily WHERE day < current_date - 35`)
+        .then((r) => r.rowCount && console.log(`limpieza: ${r.rowCount} visitantes viejos borrados`))
+        .catch((err) => console.error('limpieza falló:', err instanceof Error ? err.message : err));
     }
     if (Date.now() - lastMajorScan > 30 * 60_000) {
       lastMajorScan = Date.now();

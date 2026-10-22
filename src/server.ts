@@ -646,6 +646,20 @@ app.get('/eol/*', async (c) => {
   return c.html(eolCycleHtml(v), 200, { 'cache-control': CACHE_SHORT });
 });
 
+/** Datos de la portada (los mismos en los 18 idiomas): se calculan una vez por minuto en vez de en cada visita. */
+type BrowseResult = Awaited<ReturnType<typeof browse>>;
+let homeCache: { at: number; value: Promise<{ npmTop: BrowseResult; pypiTop: BrowseResult; cratesTop: BrowseResult; packagistTop: BrowseResult; st: Record<string, number | null> }> } | null = null;
+function homeData() {
+  if (!homeCache || Date.now() - homeCache.at > 60_000) {
+    const value = Promise.all([browse('npm', 0, 40), browse('pypi', 0, 40), browse('crates', 0, 40), browse('packagist', 0, 40), stats()]).then(
+      ([npmTop, pypiTop, cratesTop, packagistTop, st]) => ({ npmTop, pypiTop, cratesTop, packagistTop, st }),
+    );
+    value.catch(() => (homeCache = null));
+    homeCache = { at: Date.now(), value };
+  }
+  return homeCache.value;
+}
+
 /** Páginas para humanos y buscadores, en cada idioma. Inglés en la raíz; el resto bajo /{código}. */
 function registerPages(L: Locale): void {
   const p = L.prefix;
@@ -653,10 +667,10 @@ function registerPages(L: Locale): void {
     c.html(body, status, { 'cache-control': CACHE_SHORT, 'content-language': L.lang });
 
   const home = async (c: Context) => {
-    const [npmTop, pypiTop, cratesTop, packagistTop] = await Promise.all([browse('npm', 0, 40), browse('pypi', 0, 40), browse('crates', 0, 40), browse('packagist', 0, 40)]);
+    const { npmTop, pypiTop, cratesTop, packagistTop, st } = await homeData();
     return html(
       c,
-      homeHtml(L, await stats(), {
+      homeHtml(L, st, {
         npm: npmTop.items.map((x) => x.name),
         pypi: pypiTop.items.map((x) => x.name),
         crates: cratesTop.items.map((x) => x.name),
