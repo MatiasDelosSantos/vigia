@@ -28,3 +28,14 @@ describe('indexación de traducciones', () => {
     expect((esHome.match(/rel="alternate" hreflang=/g) ?? []).length).toBe(19); // 18 idiomas + x-default
   });
 });
+
+describe('paquetes indexables', () => {
+  it('sólo los más populares de cada ecosistema se ofrecen a Google', async () => {
+    const { packageIndexable } = await import('../src/api/pages.js');
+    expect(packageIndexable('npm', 1)).toBe(true);
+    expect(packageIndexable('npm', 3000)).toBe(true);
+    expect(packageIndexable('npm', 3001)).toBe(false);
+    expect(packageIndexable('crates', 600)).toBe(false);
+    expect(packageIndexable('pypi', null)).toBe(false);
+  });
+});

@@ -13,7 +13,7 @@ import { splitPackagePath } from './paths.js';
 import { availableGuides, compatibilityTable, compatibleVersion, guidesFor, symbolStatus, upgradeReport } from './intel.js';
 import { parseConstraints } from './upgrade.js';
 import { openapi } from './api/openapi.js';
-import { ctaVariant, modelPage, modelsIndexPage, providerPage, upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
+import { INDEX_TOP, ctaVariant, modelPage, modelsIndexPage, providerPage, upgradeHtml, upgradesIndexHtml, weeklyHtml } from './api/pages.js';
 import { readFileSync } from 'node:fs';
 import { BROWSE_PAGE_SIZE, CHECKER_EXAMPLES, FAVICON_SVG, adminStatsHtml, browseHtml, checkerHtml, docsHtml, docsMarkdown, esc, homeHtml, legalHtml, listPage, llmsTxt, localeUrl, packageHtml, packageMarkdown, statusHtml } from './api/pages.js';
 import { recentVersions } from './versions.js';
@@ -578,15 +578,16 @@ app.get('/sitemaps/:file', async (c) => {
   const r = await pool.query<{ ecosystem: string; name: string; lm: Date }>(
     `SELECT ecosystem, name, COALESCE(last_changed_at, last_checked_at) AS lm FROM entity
      WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL AND ($1 OR popularity_rank <= $2)
+       AND popularity_rank <= COALESCE((($3::jsonb) ->> ecosystem)::int, 0)
        AND NOT EXISTS (SELECT 1 FROM fact x WHERE x.entity_id = entity.id AND x.predicate = 'exists' AND x.recorded_to IS NULL AND x.value = 'false'::jsonb)
      ORDER BY popularity_rank NULLS LAST LIMIT 48000`,
-    [L.code === 'en', localizedTop],
+    [L.code === 'en', localizedTop, JSON.stringify(INDEX_TOP)],
   );
   const counts = await pool.query<{ ecosystem: string; n: number }>(
     `SELECT ecosystem, count(*)::int AS n FROM entity WHERE type = 'package' AND tracked AND last_checked_at IS NOT NULL GROUP BY 1`,
   );
   const browsePaths = counts.rows.flatMap((x) =>
-    Array.from({ length: Math.ceil(x.n / BROWSE_PAGE_SIZE) }, (_, i) => (i === 0 ? `/${x.ecosystem}` : `/${x.ecosystem}?page=${i + 1}`)),
+    Array.from({ length: Math.max(1, Math.min(Math.ceil(x.n / BROWSE_PAGE_SIZE), Math.ceil((INDEX_TOP[x.ecosystem] ?? 0) / BROWSE_PAGE_SIZE))) }, (_, i) => (i === 0 ? `/${x.ecosystem}` : `/${x.ecosystem}?page=${i + 1}`)),
   );
   const guides = await availableGuides(5000);
   const guidePaths = guides.filter((g) => L.code === 'en' || guides.indexOf(g) < 300).map((g) => `/upgrade/npm/${g.name}/${g.from}-to-${g.to}`);

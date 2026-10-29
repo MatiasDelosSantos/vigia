@@ -1,7 +1,7 @@
 import { pool } from './db.js';
 import { config } from './config.js';
 import { LOCALES } from './i18n/index.js';
-import { localeUrl } from './api/pages.js';
+import { localeUrl, packageIndexable } from './api/pages.js';
 
 const ENDPOINT = 'https://api.indexnow.org/indexnow';
 // Cambiar la versión fuerza una notificación completa (p. ej. al agregar idiomas).
@@ -43,7 +43,7 @@ export async function submitIndexNow(): Promise<number> {
   const staticPaths = since ? ['/changes'] : STATIC_PATHS;
   const urls = LOCALES.flatMap((L) => [
     ...staticPaths.map((p) => localeUrl(L, p)),
-    ...r.rows.filter((x) => L.code === 'en' || (x.rank !== null && x.rank <= localizedTop)).map((x) => localeUrl(L, `/${x.ecosystem}/${x.name}`)),
+    ...r.rows.filter((x) => packageIndexable(x.ecosystem, x.rank) && (L.code === 'en' || (x.rank !== null && x.rank <= localizedTop))).map((x) => localeUrl(L, `/${x.ecosystem}/${x.name}`)),
   ]);
 
   for (let i = 0; i < urls.length; i += BATCH) {

@@ -133,6 +133,19 @@ const pkgPath = (d: any) => `/${d.ecosystem}/${d.entity.slice(d.ecosystem.length
  */
 export const LOCALIZED_TOP = Number(process.env.SITEMAP_LOCALIZED_TOP ?? 300);
 
+/**
+ * Cuántos paquetes por ecosistema se ofrecen a Google (los más populares). El 22/10/2026 Google recortó el sitio a casi
+ * cero tras ver ~95.000 páginas generadas casi iguales; las de paquetes poco conocidos siguen existiendo (API, MCP,
+ * enlaces) pero con noindex, para que lo que se indexe sea lo que tiene valor propio.
+ */
+export const INDEX_TOP: Record<string, number> = {
+  npm: Number(process.env.INDEX_TOP_NPM ?? 3000),
+  pypi: Number(process.env.INDEX_TOP_PYPI ?? 2000),
+  crates: Number(process.env.INDEX_TOP_CRATES ?? 500),
+  packagist: Number(process.env.INDEX_TOP_PACKAGIST ?? 500),
+};
+export const packageIndexable = (eco: string, rank: number | null | undefined) => rank != null && rank <= (INDEX_TOP[eco] ?? 0);
+
 export interface PackageExtras {
   rank?: number | null;
   versions: Array<{ version: string; published_at: Date | null; prerelease: boolean; withdrawn: boolean }>;
@@ -305,7 +318,7 @@ GET ${esc(config.publicUrl)}/v1/packages${esc(path)}/versions/{version}</pre>`;
     body,
     variant,
     singleLanguage: (extras.rank ?? Infinity) > LOCALIZED_TOP,
-    noindex: L.code !== 'en' && (extras.rank ?? Infinity) > LOCALIZED_TOP,
+    noindex: (L.code !== 'en' && (extras.rank ?? Infinity) > LOCALIZED_TOP) || !packageIndexable(eco, extras.rank),
     feed: `${config.publicUrl}/feed/package/${eco}/${d.entity.slice(eco.length + 1)}.atom`,
     ld: [
       {
@@ -544,6 +557,8 @@ export function browseHtml(
     description: t(L, 'browse.intro'),
     path,
     body,
+    // Las páginas del listado más allá de los paquetes indexables no se ofrecen a Google (siguen enlazando a todos).
+    noindex: page > Math.max(1, Math.ceil((INDEX_TOP[eco] ?? 0) / BROWSE_PAGE_SIZE)),
     ld: [{ '@type': 'CollectionPage', name: title, url: localeUrl(L, path), inLanguage: L.lang }, bc.ld],
   });
 }
