@@ -647,11 +647,11 @@ app.get('/eol/*', async (c) => {
   return c.html(eolCycleHtml(v), 200, { 'cache-control': CACHE_SHORT });
 });
 
-/** Datos de la portada (los mismos en los 18 idiomas): se calculan una vez por minuto en vez de en cada visita. */
+/** Datos de la portada (los mismos en los 18 idiomas): se calculan cada 10 minutos en vez de en cada visita. */
 type BrowseResult = Awaited<ReturnType<typeof browse>>;
 let homeCache: { at: number; value: Promise<{ npmTop: BrowseResult; pypiTop: BrowseResult; cratesTop: BrowseResult; packagistTop: BrowseResult; st: Record<string, number | null> }> } | null = null;
 function homeData() {
-  if (!homeCache || Date.now() - homeCache.at > 60_000) {
+  if (!homeCache || Date.now() - homeCache.at > 10 * 60_000) {
     const value = Promise.all([browse('npm', 0, 40), browse('pypi', 0, 40), browse('crates', 0, 40), browse('packagist', 0, 40), stats()]).then(
       ([npmTop, pypiTop, cratesTop, packagistTop, st]) => ({ npmTop, pypiTop, cratesTop, packagistTop, st }),
     );
