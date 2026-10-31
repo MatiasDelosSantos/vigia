@@ -38,7 +38,7 @@ const searchEcosystem = z.enum(['npm', 'pypi', 'crates', 'packagist', 'ai']);
 
 const COMMON = 'Read-only and requires no authentication.';
 
-function buildServer(): McpServer {
+export function buildServer(): McpServer {
   const server = new McpServer(
     { name: 'vigia', version: '0.6.0' },
     {

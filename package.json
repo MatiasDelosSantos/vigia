@@ -15,7 +15,8 @@
     "dev:api": "tsx watch src/server.ts",
     "dev:worker": "tsx watch src/worker.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start:stdio": "node dist/stdio.js"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
@@ -53,5 +54,8 @@
     "semver",
     "typescript",
     "osv"
-  ]
+  ],
+  "bin": {
+    "vigia-mcp": "dist/stdio.js"
+  }
 }
